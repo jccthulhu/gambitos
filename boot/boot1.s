@@ -19,6 +19,7 @@ start:
 	movw	$0x2,%cx
 	movw	$0x0,%dx
 	movw	$PART_TBL,%bx
+	movb	$0x1,%al
 	callw	loaddsk
 	# scan the partition table for bootable partitions
 	# print the bootable partitions to the screen
@@ -39,9 +40,9 @@ start:
 #	ch	cylinder number
 #	dh	head
 #	bx	buffer
+#	al	number of sectors to read
 loaddsk:
 	movb	$0x2,%ah
-	movb	$0x0,%al
 	int	$0x13
 	# TODO: error printing
 	retw
@@ -105,6 +106,18 @@ putint:
 
 # TODO
 putstr:
+	retw
+
+# prints character in %al
+putchr:
+	pushw	%bx
+	push	%ax
+	movw	$0x7,%bx
+	movb	$0xe,%ah
+	int	$0x10
+	# TODO: error handling
+	popw	%ax
+	popw	%bx
 	retw
 
 # TODO

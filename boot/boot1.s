@@ -3,6 +3,7 @@
 
 	.set STACK_TOP,0x7c00
 	.set PART_TBL,0x7e00
+	.set NEXT_SEG,0x8000
 
 start:
 	# clear segments
@@ -21,9 +22,15 @@ start:
 	callw	loaddsk
 	# scan the partition table for bootable partitions
 	# print the bootable partitions to the screen
+	movw	$PART_TBL,%ax
+	callw	printtbl
 	# allow the user to choose one
+	callw	getint
 	# load that one into memory
+	move	$NEXT_SEG,%bx
+	callw	loadprt
 	# hop to it
+	jmp	*%bx
 
 # load from a disk in CHS mode
 # params:
@@ -33,14 +40,15 @@ start:
 #	dh	head
 #	bx	buffer
 loaddsk:
-	movw	$0x2,%ah
+	movb	$0x2,%ah
+	movb	$0x0,%al
 	int	$0x13
 	# TODO: error printing
 	retw
 
 # prints the partition table in a readable format
 # params:
-#	bx	partition table
+#	ax	partition table
 printtbl:
 	# each entry in the table has 4 parts
 	#	1. 1 byte filesystem type
@@ -52,7 +60,7 @@ printtbl:
 	pushw	%bx
 	pushw	%di
 	pushw	%ax
-	movw	%bx,%di
+	movw	%ax,%di
 	xorw	%bx,%bx
 	xorw	%ax,%ax
 printtbl.0:
@@ -101,4 +109,13 @@ putstr:
 
 # TODO
 getname:
+	retw
+
+# TODO
+getint:
+	retw
+
+# TODO
+# load a partition
+loadprt:
 	retw

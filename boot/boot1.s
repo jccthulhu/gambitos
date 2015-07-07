@@ -104,8 +104,24 @@ printtbl.2:
 putint:
 	retw
 
-# TODO
+# print the string pointed to by %ax
 putstr:
+	# save registers
+	pushw	%ax
+	pushw	%di
+	movw	%di,%ax
+	xorw	%ax,%ax
+putstr.0:
+	movb	(%di),%al	# load the byte
+	testb	%al,%al		# is it zero?
+	je	putstr.1	# yes, done
+	callw	putchr		# print character
+	inc	%di		# increment pointer
+	jmp	putstr.0	# loop
+putstr.1:
+	# restore registers
+	popw	%di
+	popw	%ax
 	retw
 
 # prints character in %al

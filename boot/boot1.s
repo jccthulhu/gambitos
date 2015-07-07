@@ -28,7 +28,7 @@ start:
 	# allow the user to choose one
 	callw	getint
 	# load that one into memory
-	move	$NEXT_SEG,%bx
+	movw	$NEXT_SEG,%bx
 	callw	loadprt
 	# hop to it
 	jmp	*%bx
@@ -120,8 +120,32 @@ putchr:
 	popw	%bx
 	retw
 
-# TODO
+# convert the filesystem ID in %al to a name
+# result is pointer in %ax
 getname:
+	# save registers
+	pushw	%di
+	pushw	%bx
+	xorw	%bx,%bx
+	# load the partition index table
+	movw	$partindx,%di
+getname.0:
+	# scan it, looking for matches
+	movb	(%di),%bl	# load current entry
+	testb	%bl,%bl		# zero?
+	je	getname.1	# yes, no matches
+	cmpb	%al,%bl		# match?
+	je	getname.1	# yes
+	addw	$0x3,%di	# increment pointer
+	jmp	getname.0	# loop
+getname.1:
+	# get string pointer
+	incw	%di
+	movw	(%di),%ax
+	# restore registers
+	popw	%cx
+	popw	%bx
+	popw	%di
 	retw
 
 # TODO
@@ -132,3 +156,26 @@ getint:
 # load a partition
 loadprt:
 	retw
+
+oswin:	.ascii	"WINDOWS"
+	.byte	0x0
+oslin:	.ascii	"LINUX"
+	.byte	0x0
+osbsd:	.ascii	"BSD"
+	.byte	0x0
+osgmb:	.ascii	"GAMBIT"
+	.byte	0x0
+osunkn:	.ascii	"UNKNOWN"
+	.byte	0x0
+
+partindx:
+.byte	0x07		# Windows
+.word	oswin
+.byte	0x83		# Linux
+.word	oslin
+.byte	0xa5		# BSD
+.word	osbsd
+.byte	0x66		# TODO: gambit
+.word	osgmb
+.byte	0x00		# end of table
+.word	osunkn

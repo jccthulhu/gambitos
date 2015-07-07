@@ -188,8 +188,20 @@ getname.1:
 	popw	%di
 	retw
 
-# TODO
+# TODO: add timeout
+# returns the user input integer in %ax
 getint:
+	# call the bios routine to get a key press
+	movb	$0x0,%ah
+	int	$0x16
+	# convert to integer
+	movb	$0x0,%ah
+	subw	$0x30,%ax
+	# correct for hexadecimal
+	cmpw	$0x0a,%ax
+	jg	getint.0
+	subw	$0x07,%ax
+getint.0:
 	retw
 
 # TODO

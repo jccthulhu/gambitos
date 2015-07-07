@@ -100,8 +100,32 @@ printtbl.2:
 	# exit
 	retw
 
-# TODO
+# print the integer in %ax
 putint:
+	# save registers
+	pushw	%ax
+	pushw	%bx
+	pushw	%cx
+	movw	%ax,%bx		# clear out %ax
+	xorw	%ax,%ax
+	movw	$0x4,%cx	# there are 4 nibbles in a word
+putint.0:
+	rolw	$0x4,%bx	# roll left
+	# isolate the lower nibble
+	movw	%bx,%ax
+	andw	$0x0f,%ax
+	addw	$0x30,%ax	# shift it into the printable range
+	# adjust for hex
+	cmpw	$0x3A,%ax
+	jae	putint.1
+	addw	$0x07,%ax
+putint.1:
+	callw	putchr		# print the character
+	loop	putint.0	# loop
+	# restore registers
+	popw	%cx
+	popw	%bx
+	popw	%ax
 	retw
 
 # print the string pointed to by %ax

@@ -15,6 +15,12 @@ start:
 	movw	%ax,%ss
 	# set up the stack
 	movw	$STACK_TOP,%sp
+	# DEBUGGING
+	# test "putstr"
+	movw	$oswin,%ax
+	callw	putstr
+	# test "putint"
+	jmp	.
 	# TODO: boot from other drives
 	# get the drive number
 	# load the partition table from sector two on that drive
@@ -138,7 +144,7 @@ putstr:
 	# save registers
 	pushw	%ax
 	pushw	%di
-	movw	%di,%ax
+	movw	%ax,%di
 	xorw	%ax,%ax
 putstr.0:
 	movb	(%di),%al	# load the byte

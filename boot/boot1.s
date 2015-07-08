@@ -3,7 +3,9 @@
 
 	.set STACK_TOP,0x7c00
 	.set PART_TBL,0x7e00
+	.set PART_SZ,0x10
 	.set NEXT_SEG,0x8000
+	.set DAB_SPC,0x600	# TODO: This reasonably
 
 start:
 	# clear segments
@@ -85,6 +87,8 @@ printtbl.0:
 	callw	getname
 	# print out the name
 	callw	putstr
+	# new line
+	callw	putn
 printtbl.1:
 	# increment the pointer
 	addw	$0x10,%di
@@ -148,6 +152,15 @@ putstr.1:
 	popw	%ax
 	retw
 
+putn:
+	pushw	%ax
+	movw	$0x13,%ax
+	callw	putchr
+	movw	$0x10,%ax
+	callw	putchr
+	popw	%ax
+	retw
+
 # prints character in %al
 putchr:
 	pushw	%bx
@@ -204,10 +217,52 @@ getint:
 getint.0:
 	retw
 
-# TODO
-# load a partition
+# load the partition whose number is in %ax to the buffer in %bx
+# drive number in %dl
 loadprt:
+	# save registers
+	# calculate index
+	movw	$PART_SZ,%di
+	mulw	%di
+	movw	%di,%ax
+	# get the pointer to the partition table
+	addw	$PART_TBL,%di
+	# step to its LBA descriptor
+	addw	$0x08,%di
+	# load the number of sectors
+	movw	(%di),%ax
+	# load the index of the first sector
+	movw	0x2(%di),%bx
+	movw	0x4(%di),%cx
+	movw	0x6(%di),%dx
+	# create the DAP
+	movw	$DAB_SPC,%di
+	movb	$0x10,(%di)		# table size
+	movb	$0x0,0x1(%di)		# reserved
+	movw	%ax,0x2(%di)		# number of sectors to read
+	popw	%ax			# reload buffer offset
+	movw	%ax,0x4(%di)		# write buffer offset
+	movw	$0x0,0x6(%di)		# write segment (zero)
+	movw	$0x0,0x8(%di)		# only 6 bytes in sector address
+	movw	%bx,0x0a(%di)		# sector address
+	movw	%cx,0x0c(%di)		# sector address
+	movw	%dx,0x0e(%di)		# sector address
+	# do an extended read
+	movw	$DAB_SPC,%si
+	movb	$0x42,%ah
+	popw	%dx			# reload drive number
+	int	$0x13
+	# report if an error occured
+	jnc	loadprt.0
+	movw	$load_error_msg,%ax
+	callw	putstr
+	callw	putn
+loadprt.0:
+	# restore registers
 	retw
+
+load_error_msg:	.ascii	"LOAD ERROR"
+	.byte	0x0
 
 oswin:	.ascii	"WINDOWS"
 	.byte	0x0

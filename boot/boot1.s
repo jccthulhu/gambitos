@@ -180,6 +180,7 @@ getname:
 	# save registers
 	pushw	%di
 	pushw	%bx
+	pushw	%cx
 	xorw	%bx,%bx
 	# load the partition index table
 	movw	$partindx,%di

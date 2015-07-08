@@ -15,12 +15,6 @@ start:
 	movw	%ax,%ss
 	# set up the stack
 	movw	$STACK_TOP,%sp
-	# DEBUGGING
-	# test "putstr"
-	movw	$oswin,%ax
-	callw	putstr
-	# test "putint"
-	jmp	.
 	# TODO: boot from other drives
 	# get the drive number
 	# load the partition table from sector two on that drive
@@ -128,7 +122,7 @@ putint.0:
 	addw	$0x30,%ax	# shift it into the printable range
 	# adjust for hex
 	cmpw	$0x3A,%ax
-	jae	putint.1
+	jb	putint.1
 	addw	$0x07,%ax
 putint.1:
 	callw	putchr		# print the character

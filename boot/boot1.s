@@ -221,6 +221,11 @@ getint.0:
 # drive number in %dl
 loadprt:
 	# save registers
+	pushw	%di
+	pushw	%ax
+	pushw	%cx
+	pushw	%dx
+	pushw	%bx
 	# calculate index
 	movw	$PART_SZ,%di
 	mulw	%di
@@ -241,6 +246,7 @@ loadprt:
 	movb	$0x0,0x1(%di)		# reserved
 	movw	%ax,0x2(%di)		# number of sectors to read
 	popw	%ax			# reload buffer offset
+	pushw	%ax
 	movw	%ax,0x4(%di)		# write buffer offset
 	movw	$0x0,0x6(%di)		# write segment (zero)
 	movw	$0x0,0x8(%di)		# only 6 bytes in sector address
@@ -251,6 +257,7 @@ loadprt:
 	movw	$DAB_SPC,%si
 	movb	$0x42,%ah
 	popw	%dx			# reload drive number
+	pushw	%dx
 	int	$0x13
 	# report if an error occured
 	jnc	loadprt.0
@@ -259,6 +266,11 @@ loadprt:
 	callw	putn
 loadprt.0:
 	# restore registers
+	popw	%bx
+	popw	%dx
+	popw	%cx
+	popw	%ax
+	popw	%di
 	retw
 
 load_error_msg:	.ascii	"LOAD ERROR"

@@ -19,7 +19,7 @@ start:
 	# get the drive number
 	# load the partition table from sector two on that drive
 	movw	$0x2,%cx
-	movw	$0x0,%dx
+	movb	$0x0,%dh
 	movw	$PART_TBL,%bx
 	movb	$0x1,%al
 	callw	loaddsk
@@ -111,6 +111,7 @@ putint:
 	pushw	%bx
 	pushw	%cx
 	movw	%ax,%bx		# clear out %ax
+
 	xorw	%ax,%ax
 	movw	$0x4,%cx	# there are 4 nibbles in a word
 putint.0:
@@ -164,7 +165,7 @@ putn:
 # prints character in %al
 putchr:
 	pushw	%bx
-	push	%ax
+	pushw	%ax
 	movw	$0x7,%bx
 	movb	$0xe,%ah
 	int	$0x10

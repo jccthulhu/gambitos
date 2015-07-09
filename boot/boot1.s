@@ -268,8 +268,12 @@ loadprt:
 	int	$0x13
 	# report if an error occured
 	jnc	loadprt.0
+	pushw	%ax
 	movw	$load_error_msg,%ax
 	callw	putstr
+	callw	putn
+	popw	%ax
+	callw	putint
 	callw	putn
 loadprt.0:
 	# restore registers

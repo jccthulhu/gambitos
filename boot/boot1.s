@@ -82,6 +82,11 @@ printtbl.0:
 	# print out the number
 	movw	%bx,%ax
 	callw	putint
+	# print out a dot and a space
+	movw	$0x2e,%ax
+	callw	putchr
+	movw	$0x20,%ax
+	callw	putchr
 	# convert the filesystem type to a name
 	movb	0x0(%di),%al
 	callw	getname
@@ -155,9 +160,9 @@ putstr.1:
 
 putn:
 	pushw	%ax
-	movw	$0x13,%ax
+	movw	$0xd,%ax
 	callw	putchr
-	movw	$0x10,%ax
+	movw	$0xa,%ax
 	callw	putchr
 	popw	%ax
 	retw

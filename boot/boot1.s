@@ -224,15 +224,39 @@ getint:
 getint.0:
 	retw
 
+# get the drive geometry of the drive in %dl
+# returns number_of_heads:sectors_per_track in %bx
+getgeo:
+	# save registers
+	pushw	%di
+	pushw	%dx
+	pushw	%cx
+	pushw	%ax
+	movb	$0x8,%ah
+	movw	$0x0,%di
+	int	$0x13
+	movb	%dh,%bh
+	addb	$0x1,%bh
+	movb	%cl,%bl
+	andb	$0x3f,%bl
+	# reload registers
+	popw	%ax
+	popw	%cx
+	popw	%dx
+	popw	%di
+	retw
+
 # load the partition whose number is in %ax to the buffer in %bx
 # drive number in %dl
 loadprt:
 	# save registers
 	pushw	%di
+	pushw	%si
 	pushw	%ax
 	pushw	%cx
 	pushw	%dx
 	pushw	%bx
+	movw	%bx,%si
 	# calculate index
 	movw	$PART_SZ,%di
 	mulw	%di
@@ -242,45 +266,59 @@ loadprt:
 	# step to its LBA descriptor
 	addw	$0x08,%di
 	# load the number of sectors
-	movw	(%di),%ax
+	movw	(%di),%cx
 	# load the index of the first sector
-	movw	0x2(%di),%bx
-	movw	0x4(%di),%cx
-	movw	0x6(%di),%dx
-	# create the DAP
-	movw	$DAB_SPC,%di
-	movb	$0x10,(%di)		# table size
-	movb	$0x0,0x1(%di)		# reserved
-	movw	%ax,0x2(%di)		# number of sectors to read
-	popw	%ax			# reload buffer offset
-	pushw	%ax
-	movw	%ax,0x4(%di)		# write buffer offset
-	movw	$0x0,0x6(%di)		# write segment (zero)
-	movw	$0x0,0x8(%di)		# only 6 bytes in sector address
-	movw	%bx,0x0a(%di)		# sector address
-	movw	%cx,0x0c(%di)		# sector address
-	movw	%dx,0x0e(%di)		# sector address
-	# do an extended read
-	movw	$DAB_SPC,%si
-	movb	$0x42,%ah
-	popw	%dx			# reload drive number
-	pushw	%dx
-	int	$0x13
+	# there's no way we can use the upper 4 bytes
+	movw	0x6(%di),%di
+loadprt.0:
+	# get the drive geometry
+	callw	getgeo		# bx <- number_of_heads:sectors_per_head
+	# convert the index to CHS
+	movw	%di,%ax		# ax <- first sector
+	div	%bl		# al <- LBA / sectors per track
+				# ah <- LBA % sectors per track
+	# sectors = LBA % sectors per track + 1
+	addb	$0x1,%ah	# ah <- sector
+	movb	%ah,%bl		# bl <- sector
+	movb	$0x0,%ah	# ax <- LBA / sectors per track
+	div	%bh		# al <- t / number of heads
+				# ah <- t % number of heads
+	# al <- cylinder
+	# ah <- head
+	# bl <- sector
+	# load the data
+	# save registers
+	pushw	%cx
+	movb	%bl,%cl		# sector number
+	movb	%al,%ch		# cylinder number
+	movb	%ah,%dh		# head number
+	movw	%si,%bx		# buffer pointer
+	movb	$0x1,%al	# just 1 sector
+	callw	loaddsk
+	# restore registers
+	popw	%cx
+	# increment the buffer
+	addw	$0x200,%si
+	# increment the CHS
+	incw	%di
 	# report if an error occured
-	jnc	loadprt.0
-	pushw	%ax
+	jnc	loadprt.1
 	movw	$load_error_msg,%ax
 	callw	putstr
 	callw	putn
-	popw	%ax
 	callw	putint
 	callw	putn
-loadprt.0:
+	jmp	loadprt.2
+loadprt.1:
+	# loop
+	loop	loadprt.0
+loadprt.2:
 	# restore registers
 	popw	%bx
 	popw	%dx
 	popw	%cx
 	popw	%ax
+	popw	%si
 	popw	%di
 	retw
 

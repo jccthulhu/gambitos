@@ -259,12 +259,24 @@ loadprt:
 	pushw	%dx
 	pushw	%bx
 	movw	%bx,%si
+	# DEBUG
+	pushw	%ax
+	callw	putint
+	callw	putn
+	popw	%ax
 	# calculate index
 	movw	$PART_SZ,%di
+	pushw	%dx
 	mulw	%di
-	movw	%di,%ax
+	popw	%dx
+	movw	%ax,%di
 	# get the pointer to the partition table
 	addw	$PART_TBL,%di
+	# DEBUG
+	pushw	%ax
+	movw	%di,%ax
+	callw	putint
+	popw	%ax
 	# step to its LBA descriptor
 	addw	$0x08,%di
 	# load the number of sectors
@@ -272,6 +284,11 @@ loadprt:
 	# load the index of the first sector
 	# there's no way we can use the upper 4 bytes
 	movw	0x6(%di),%di
+	# DEBUG
+	pushw	%ax
+	movw	%di,%ax
+	callw	getint	
+	popw	%ax
 loadprt.0:
 	# get the drive geometry
 	callw	getgeo		# bx <- number_of_heads:sectors_per_head

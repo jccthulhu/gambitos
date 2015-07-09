@@ -47,7 +47,11 @@ loaddsk:
 	pushw	%ax
 	movb	$0x2,%ah
 	int	$0x13
-	# TODO: error printing
+	jnc	loaddsk.0
+	movw	$load_error_msg,%ax
+	callw	putstr
+	jmp	.
+loaddsk.0:
 	popw	%ax
 	retw
 
@@ -275,6 +279,15 @@ loadprt:
 	# there's no way we can use the upper 4 bytes
 	movw	0x6(%di),%di
 loadprt.0:
+	pushw	%dx
+	# DEBUG
+	pushw	%ax
+	movw	$0x42,%ax
+	callw	putchr
+	callw	putn
+	popw	%ax
+	# save index
+	pushw	%cx
 	# get the drive geometry
 	callw	getgeo		# bx <- number_of_heads:sectors_per_head
 	# convert the index to CHS
@@ -291,8 +304,9 @@ loadprt.0:
 	# ah <- head
 	# bl <- sector
 	# load the data
+	popw	%dx
+	pushw	%dx
 	# save registers
-	pushw	%cx
 	movb	%bl,%cl		# sector number
 	movb	%al,%ch		# cylinder number
 	movb	%ah,%dh		# head number
@@ -300,23 +314,20 @@ loadprt.0:
 	movb	$0x1,%al	# just 1 sector
 	callw	loaddsk
 	# restore registers
-	popw	%cx
 	# increment the buffer
 	addw	$0x200,%si
 	# increment the CHS
 	incw	%di
-	# report if an error occured
-	jnc	loadprt.1
-	movw	$load_error_msg,%ax
-	callw	putstr
-	callw	putn
+	popw	%dx
+	popw	%cx
+	# DEBUG
+	pushw	%ax
+	movw	%cx,%ax
 	callw	putint
 	callw	putn
-	jmp	loadprt.2
-loadprt.1:
+	popw	%ax
 	# loop
 	loop	loadprt.0
-loadprt.2:
 	# restore registers
 	popw	%bx
 	popw	%dx

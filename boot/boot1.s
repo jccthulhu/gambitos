@@ -44,9 +44,11 @@ start:
 #	bx	buffer
 #	al	number of sectors to read
 loaddsk:
+	pushw	%ax
 	movb	$0x2,%ah
 	int	$0x13
 	# TODO: error printing
+	popw	%ax
 	retw
 
 # prints the partition table in a readable format

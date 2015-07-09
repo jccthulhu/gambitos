@@ -219,7 +219,7 @@ getint:
 	subw	$0x30,%ax
 	# correct for hexadecimal
 	cmpw	$0x0a,%ax
-	jg	getint.0
+	jle	getint.0
 	subw	$0x07,%ax
 getint.0:
 	retw

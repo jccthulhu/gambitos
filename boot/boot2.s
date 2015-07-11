@@ -3,10 +3,9 @@
 
 	.set STACK_TOP,0x7c00
 	.set ORG_TARG,0x600
-	.set GDT_SPC,0x8000
 	.set GDT_SIZE,0x20	# 4 8-byte entries
 	.set TSS_SPC,0x8020
-	.set TSS_SZ,0x64
+	.set TSS_SZ,0x65
 
 start:
 	# string ops increment
@@ -25,10 +24,31 @@ start:
 	callw	seta20
 	# set the GDT
 	lgdt	gdtdesc
+	# set up the IDT
+	
+	# set protected mode
+	# set up the TSS
+	movw	$TSS_SPC,%di
+	callw	createtss
+	movw	$TSS_SPC,%ax
+	ltr	%ax
+	# jump to 32 bit code
 	# DEBUG
 	movb	$0x43,%al
 	callw	putchr
 	jmp	.
+
+# create the TSS in the memory pointed to by %di
+createtss:
+	# save registers
+	# write the stack segment
+	movw	$0x10,0x8(%di)
+	# write the kernel stack base
+	movw	$STACK_TOP,0x4(%di)
+	# write the io bitmap
+	movw	$TSS_SZ,0x66(%di)
+	# restore registers
+	retw
 
 seta20:
 	pushw	%ax
@@ -63,47 +83,6 @@ putchr:
 	popw	%bx
 	retw
 
-# installs an entry in the GDT
-# %si:%ax - base
-# %dl:%bx - limit
-# %di - GDT pointer
-# %ch - ring level
-# %cl - executable
-# %dh - readable/writable
-installgdt:
-	# save registers
-	pushaw
-	# write the lower word of the limit
-	movw	%bx,(%di)
-	# write the lower word of the base
-	movw	%ax,0x2(%di)
-	# write the next byte of the base
-	movw	%si,%ax
-	movb	%al,0x4(%di)
-	# form the access byte
-	xorb	%al,%al		# clear byte
-	orb	$0x90,%al	# set the present bit and another, misc. bit
-	rolb	$0x5,%ch	# roll the ring level into place
-	orb	%ch,%al		# mask it into the access byte
-	rolb	$0x3,%cl	# roll the exe bit into place
-	orb	%cl,%al		# mask it into the access byte
-	andb	$0xfb,%al	# all segments count up/do not conform
-	rolb	$0x1,%dh	# roll rw bit into place
-	orb	%dh,%al		# set read/write-ability
-	# write it
-	movb	%al,0x5(%di)
-	# combine the last limit nibble with the flags
-	movb	%dl,%al
-	andb	$0xcf,%al
-	# write it
-	movb	%al,0x6(%di)
-	# write the last byte of the base
-	movw	%si,%ax
-	movb	%ah,0x7(%di)
-	# restore registers
-	popaw
-	retw
-
 gdt:
 	# TODO: entries that we can live with
 	# null entry
@@ -113,14 +92,14 @@ gdt:
 	.byte	0x10	# access byte
 	.byte	0xc0	# flags:limit
 	.byte	0x0	# zero base
-	# code segment
+	# kernel code segment
 	.word	0xffff	# high limit	
 	.word	0x0	# zero base
 	.byte	0x0	# zero base some more
 	.byte	0x9a	# access byte
 	.byte	0xcf	# flags:high limit
 	.byte	0x0	# zero base some more
-	# data segment
+	# kernel data segment
 	.word	0xffff	# high limit
 	.word	0x0	# zero base
 	.byte	0x0	# zero base some more
@@ -131,8 +110,8 @@ gdt:
 	.word	TSS_SZ	# 100 byte limit
 	.word	TSS_SPC	# base
 	.byte	0x0	# zero the rest of the base
-	.byte	0x92	# access byte
-	.byte	0xc0	# flags:low limit
+	.byte	0x89	# access byte
+	.byte	0x40	# flags:low limit
 	.byte	0x0	# zero the rest of the base
 
 gdtdesc:

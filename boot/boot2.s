@@ -5,6 +5,8 @@
 	.set ORG_TARG,0x600
 	.set GDT_SPC,0x8000
 	.set GDT_SIZE,0x20	# 4 8-byte entries
+	.set TSS_SPC,0x8020
+	.set TSS_SIZE,0x64
 
 start:
 	# string ops increment
@@ -54,6 +56,18 @@ gdt_clear:
 	# kernel ring is already set
 	movb	$0x0,%cl	# noX
 	# writable is already set
+	callw	installgdt
+	# TODO: write a TSS segment
+	addw	$0x8,%di
+	# update base
+	movw	$TSS_SPC,%ax
+	movw	$0x0,%si
+	# update limit
+	movw	$TSS_SIZE,%bx
+	movb	$0x0,%dl
+	# kernel ring is already set
+	# noX is already set
+	# readable is already set
 	callw	installgdt
 	# set it as the GDT
 	lgdt	gdtdesc

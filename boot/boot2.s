@@ -1,9 +1,12 @@
 	.globl	start
 	.code16
 
-	.set STACK_TOP,0x7000
+	.set STACK_TOP,0x7c00
+	.set ORG_TARG,0x600
 
 start:
+	# string ops increment
+	cld
 	# clear segments
 	xorw	%ax,%ax
 	movw	%ax,%es

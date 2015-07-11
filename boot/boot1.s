@@ -2,11 +2,14 @@
 	.code16
 
 	.set STACK_TOP,0x7c00
-	.set PART_TBL,0x7e00
+	.set PART_TBL,0x800
 	.set PART_SZ,0x10
-	.set NEXT_SEG,0x8000
+	.set NEXT_SEG,0x7c00
+	.set TARGET,0x600
+	.set SEG_SIZE,0x200
 
 start:
+	cld
 	# clear segments
 	xorw	%ax,%ax
 	movw	%ax,%es
@@ -14,6 +17,14 @@ start:
 	movw	%ax,%ss
 	# set up the stack
 	movw	$STACK_TOP,%sp
+	# relocate ourselves
+	movw	%sp,%si
+	movw	$TARGET,%di
+	movw	$SEG_SIZE,%cx
+	rep
+	movsw
+	jmp	resume-STACK_TOP+TARGET
+resume:
 	# TODO: boot from other drives
 	# get the drive number
 	# load the partition table from sector two on that drive

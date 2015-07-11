@@ -17,7 +17,31 @@ start:
 	# DEBUG
 	movb	$0x42,%al
 	callw	putchr
+	# enable more memory than anyone would ever need
+	callw	seta20
+	# DEBUG
+	movb	$0x43,%al
+	callw	putchr
 	jmp	.
+
+seta20:
+	pushw	%ax
+	cli	# disable interrupts
+seta20.1:
+	inb	$0x64,%al	# get status
+	testb	$0x2,%al	# busy?
+	jnz	seta20.1	# yes
+	movb	$0xd1,%al	# commands: write
+	outb	%al,$0x64	#	output port
+seta20.2:
+	inb	$0x64,%al	# get status
+	testb	$0x2,%al	# busy?
+	jnz	seta20.2	# yes
+	movb	$0xdf,%al	# enable
+	outb	%al,$0x60	# 	A20
+	sti			# enable interrupts
+	popw	%ax
+	retw
 
 # prints character in %al
 putchr:

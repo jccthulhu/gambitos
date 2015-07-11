@@ -22,11 +22,41 @@ start:
 	# enable more memory than anyone would ever need
 	callw	seta20
 	# clear space for the GDT
-	movw	$GDT_SPACE,%di
+	movw	$GDT_SPC,%di
 	movw	$GDT_SIZE,%cx
+	shrw	$0x1,%cx
 gdt_clear:
 	movw	$0x0,(%di)
 	loop	gdt_clear
+	# fill in the GDT
+	# write the null segment
+	movw	$GDT_SPC,%di
+	xorw	%si,%si
+	xorw	%ax,%ax
+	xorw	%bx,%bx
+	xorw	%cx,%cx
+	xorw	%dx,%dx
+	callw	installgdt
+	# write a code segment
+	addw	$0x8,%di
+	# the base is still clear
+	# set a crazy high limit
+	movw	$0xffff,%bx	# almost all the pages
+	movb	$0xff,%dl	# all the pages
+	movb	$0x0,%dh	# kernel ring
+	movb	$0x1,%cl	# eXe
+	movb	$0x1,%dh	# readable
+	callw	installgdt
+	# write a data segment
+	addw	$0x8,%di
+	# base is already cleared
+	# limit is already set
+	# kernel ring is already set
+	movb	$0x0,%cl	# noX
+	# writable is already set
+	callw	installgdt
+	# set it as the GDT
+	lgdt	gdtdesc
 	# DEBUG
 	movb	$0x43,%al
 	callw	putchr
@@ -64,3 +94,50 @@ putchr:
 	popw	%ax
 	popw	%bx
 	retw
+
+# installs an entry in the GDT
+# %si:%ax - base
+# %dl:%bx - limit
+# %di - GDT pointer
+# %ch - ring level
+# %cl - executable
+# %dh - readable/writable
+installgdt:
+	# save registers
+	pushaw
+	# write the lower word of the limit
+	movw	%bx,(%di)
+	# write the lower word of the base
+	movw	%ax,0x2(%di)
+	# write the next byte of the base
+	movw	%si,%ax
+	movb	%al,0x4(%di)
+	# form the access byte
+	xorb	%al,%al		# clear byte
+	orb	$0x90,%al	# set the present bit and another, misc. bit
+	rolb	$0x5,%ch	# roll the ring level into place
+	orb	%ch,%al		# mask it into the access byte
+	rolb	$0x3,%cl	# roll the exe bit into place
+	orb	%cl,%al		# mask it into the access byte
+	andb	$0xfb,%al	# all segments count up/do not conform
+	rolb	$0x1,%dh	# roll rw bit into place
+	orb	%dh,%al		# set read/write-ability
+	# write it
+	movb	%al,0x5(%di)
+	# combine the last limit nibble with the flags
+	movb	%dl,%al
+	andb	$0xcf,%al
+	# write it
+	movb	%al,0x6(%di)
+	# write the last byte of the base
+	movw	%si,%ax
+	movb	%ah,0x7(%di)
+	# restore registers
+	popaw
+	retw
+
+gdtdesc:
+	.word	GDT_SIZE-1
+	.word	0x0
+	.word	GDT_SPC
+

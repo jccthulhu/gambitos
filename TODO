@@ -1,7 +1,7 @@
 bootloader	(one for each target architecture)
 	stage 1
-		select boot medium
-		load later stages
+		* select boot medium
+		* load later stages
 	stage 2
 		flip A20 line (enable >1MB memory)
 		install IVT (real mode interrupt handlers)

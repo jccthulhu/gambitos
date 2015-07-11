@@ -6,7 +6,7 @@
 	.set GDT_SPC,0x8000
 	.set GDT_SIZE,0x20	# 4 8-byte entries
 	.set TSS_SPC,0x8020
-	.set TSS_SIZE,0x64
+	.set TSS_SZ,0x64
 
 start:
 	# string ops increment
@@ -23,53 +23,7 @@ start:
 	callw	putchr
 	# enable more memory than anyone would ever need
 	callw	seta20
-	# clear space for the GDT
-	movw	$GDT_SPC,%di
-	movw	$GDT_SIZE,%cx
-	shrw	$0x1,%cx
-gdt_clear:
-	movw	$0x0,(%di)
-	loop	gdt_clear
-	# fill in the GDT
-	# write the null segment
-	movw	$GDT_SPC,%di
-	xorw	%si,%si
-	xorw	%ax,%ax
-	xorw	%bx,%bx
-	xorw	%cx,%cx
-	xorw	%dx,%dx
-	callw	installgdt
-	# write a code segment
-	addw	$0x8,%di
-	# the base is still clear
-	# set a crazy high limit
-	movw	$0xffff,%bx	# almost all the pages
-	movb	$0xff,%dl	# all the pages
-	movb	$0x0,%dh	# kernel ring
-	movb	$0x1,%cl	# eXe
-	movb	$0x1,%dh	# readable
-	callw	installgdt
-	# write a data segment
-	addw	$0x8,%di
-	# base is already cleared
-	# limit is already set
-	# kernel ring is already set
-	movb	$0x0,%cl	# noX
-	# writable is already set
-	callw	installgdt
-	# TODO: write a TSS segment
-	addw	$0x8,%di
-	# update base
-	movw	$TSS_SPC,%ax
-	movw	$0x0,%si
-	# update limit
-	movw	$TSS_SIZE,%bx
-	movb	$0x0,%dl
-	# kernel ring is already set
-	# noX is already set
-	# readable is already set
-	callw	installgdt
-	# set it as the GDT
+	# set the GDT
 	lgdt	gdtdesc
 	# DEBUG
 	movb	$0x43,%al
@@ -150,8 +104,39 @@ installgdt:
 	popaw
 	retw
 
+gdt:
+	# TODO: entries that we can live with
+	# null entry
+	.word	0x0	# zero limit
+	.word	0x0	# zero base
+	.byte	0x0	# zero base some more
+	.byte	0x10	# access byte
+	.byte	0xc0	# flags:limit
+	.byte	0x0	# zero base
+	# code segment
+	.word	0xffff	# high limit	
+	.word	0x0	# zero base
+	.byte	0x0	# zero base some more
+	.byte	0x9a	# access byte
+	.byte	0xcf	# flags:high limit
+	.byte	0x0	# zero base some more
+	# data segment
+	.word	0xffff	# high limit
+	.word	0x0	# zero base
+	.byte	0x0	# zero base some more
+	.byte	0x92	# access byte
+	.byte	0xcf	# flags:high limit
+	.byte	0x0	# revenge of the zero base
+	# TSS segment
+	.word	TSS_SZ	# 100 byte limit
+	.word	TSS_SPC	# base
+	.byte	0x0	# zero the rest of the base
+	.byte	0x92	# access byte
+	.byte	0xc0	# flags:low limit
+	.byte	0x0	# zero the rest of the base
+
 gdtdesc:
 	.word	GDT_SIZE-1
 	.word	0x0
-	.word	GDT_SPC
+	.word	gdt
 

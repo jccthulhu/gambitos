@@ -5,7 +5,6 @@
 	.set PART_TBL,0x7e00
 	.set PART_SZ,0x10
 	.set NEXT_SEG,0x8000
-	.set DAB_SPC,0x600	# TODO: This reasonably
 
 start:
 	# clear segments

@@ -45,11 +45,21 @@ start:
 #	al	number of sectors to read
 loaddsk:
 	pushw	%ax
+	# DEBUG
+	pushw	%ax
+	movw	%dx,%ax
+	callw	putint
+	callw	putn
+	popw	%ax
+
 	movb	$0x2,%ah
 	int	$0x13
 	jnc	loaddsk.0
 	movw	$load_error_msg,%ax
 	callw	putstr
+	callw	putn
+	callw	putint
+	callw	putn
 	jmp	.
 loaddsk.0:
 	popw	%ax
@@ -279,15 +289,9 @@ loadprt:
 	# there's no way we can use the upper 4 bytes
 	movw	0x6(%di),%di
 loadprt.0:
-	pushw	%dx
-	# DEBUG
-	pushw	%ax
-	movw	$0x42,%ax
-	callw	putchr
-	callw	putn
-	popw	%ax
 	# save index
 	pushw	%cx
+	pushw	%dx
 	# get the drive geometry
 	callw	getgeo		# bx <- number_of_heads:sectors_per_head
 	# convert the index to CHS

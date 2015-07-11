@@ -3,12 +3,12 @@ bootloader	(one for each target architecture)
 		* select boot medium
 		* load later stages
 	stage 2
-		flip A20 line (enable >1MB memory)
-		install IVT (real mode interrupt handlers)
-		install IDT (protected mode interrupt handlers)
+		* flip A20 line (enable >1MB memory)
 		install GDT
-		install TSS (enable other processors)
 		enable protected mode
 		change bitness (presumbly 16 -> 32, or 16 -> 64 if we can manage)
+		install IVT (real mode interrupt handlers)
+		install IDT (protected mode interrupt handlers)
+		install TSS (enable other processors)
 		load the kernel
 		interrogate hardware and pass configuration information to the kernel

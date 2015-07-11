@@ -3,6 +3,8 @@
 
 	.set STACK_TOP,0x7c00
 	.set ORG_TARG,0x600
+	.set GDT_SPC,0x8000
+	.set GDT_SIZE,0x20	# 4 8-byte entries
 
 start:
 	# string ops increment
@@ -19,6 +21,12 @@ start:
 	callw	putchr
 	# enable more memory than anyone would ever need
 	callw	seta20
+	# clear space for the GDT
+	movw	$GDT_SPACE,%di
+	movw	$GDT_SIZE,%cx
+gdt_clear:
+	movw	$0x0,(%di)
+	loop	gdt_clear
 	# DEBUG
 	movb	$0x43,%al
 	callw	putchr

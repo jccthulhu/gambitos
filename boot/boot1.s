@@ -45,13 +45,6 @@ start:
 #	al	number of sectors to read
 loaddsk:
 	pushw	%ax
-	# DEBUG
-	pushw	%ax
-	movw	%dx,%ax
-	callw	putint
-	callw	putn
-	popw	%ax
-
 	movb	$0x2,%ah
 	int	$0x13
 	jnc	loaddsk.0
@@ -299,7 +292,6 @@ loadprt.0:
 	div	%bl		# al <- LBA / sectors per track
 				# ah <- LBA % sectors per track
 	# sectors = LBA % sectors per track + 1
-	addb	$0x1,%ah	# ah <- sector
 	movb	%ah,%bl		# bl <- sector
 	movb	$0x0,%ah	# ax <- LBA / sectors per track
 	div	%bh		# al <- t / number of heads
@@ -324,12 +316,6 @@ loadprt.0:
 	incw	%di
 	popw	%dx
 	popw	%cx
-	# DEBUG
-	pushw	%ax
-	movw	%cx,%ax
-	callw	putint
-	callw	putn
-	popw	%ax
 	# loop
 	loop	loadprt.0
 	# restore registers

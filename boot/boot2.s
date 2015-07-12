@@ -33,37 +33,12 @@ start:
 	# set the GDT
 	lgdt	gdtdesc
 	# set up the IDT
-	# clear space for the IDT
-	movw	$IDT_SPC,%di
-	movw	$IDT_SZ,%cx
-	shr	$0x1,%cx
-start.0:
-	movw	$0x0,(%di)
-	loop	start.0
-	# create an abstraction over the IDT, call it VIDT
-	# fill in VIDT with default ISRs
-	movw	$VIDT_SPC,%di
-	movw	$VIDT_SZ,%cx
-start.1:
-	movw	$default_isr,(%di)
-	loop	start.1
-	# fill in the IDT with permanent entries
-	movw	$IDT_SPC,%di
-	addw	$BASE_INT,%di
-	movw	isr_array,%si
-	movw	$VIDT_SZ,%cx
-	shr	$0x2,%cx	# 4 bytes per entry
-start.2:
-	movw	(%si),%ax	# load the isr target
-	callw	installisr	# subcontract out
-	addw	$0x8,%di	# increment the IDT index
-	addw	$0x2,%si	# increment the isr target pointer
-	loop	start.2
+	# set up the IVT
 	# DEBUG
 	movb	$0x43,%al
 	callw	putchr
 	# set it as the IDT
-	lidt	idtdesc
+	#lidt	idtdesc
 	# DEBUG
 	movb	$0x44,%al
 	callw	putchr
@@ -78,10 +53,13 @@ start.2:
 	orb	$0x1,%al
 	mov	%eax,%cr0
 	# jump to 32 bit code
-	ljmp	main
+	ljmp	$0x8,$main
 	jmp	.
 
 mappic:
+	# save regsiers
+	pushw	%ax
+	pushw	%bx
 	in	$0x21,%al
 	pushw	%ax
 	in	$0xa1,%al
@@ -104,6 +82,9 @@ mappic:
 	outb	%al,$0xa1
 	popw	%ax
 	outb	%al,$0x21
+	# restore registers
+	popw	%bx
+	popw	%ax
 	retw
 
 
@@ -215,6 +196,8 @@ idtdesc:
 
 # 32 bit main
 main:
+	# DEBUG
+	jmp	.
 	# set up the TSS
 	movw	$TSS_SPC,%di
 	callw	createtss

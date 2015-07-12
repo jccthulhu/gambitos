@@ -47,14 +47,18 @@ start.1:
 	movw	$IDT_SPC,%di
 	movw	isr_array,%si
 	movw	$VIDT_SZ,%cx
-	shr	$0x2,%cx
+	shr	$0x2,%cx	# 4 bytes per entry
 start.2:
-	movw	(%si),%ax
-	callw	installisr
-	addw	$0x8,%di
-	addw	$0x2,%si
+	movw	(%si),%ax	# load the isr target
+	callw	installisr	# subcontract out
+	addw	$0x8,%di	# increment the IDT index
+	addw	$0x2,%si	# increment the isr target pointer
 	loop	start.2
+	# set it as the IDT
+	lidt	idtdesc
 	# reprogram the PIC
+	movw	$2820,%ax
+	callw	mappic
 	# set protected mode
 	# set up the TSS
 	movw	$TSS_SPC,%di
@@ -66,6 +70,32 @@ start.2:
 	movb	$0x43,%al
 	callw	putchr
 	jmp	.
+
+mappic:
+	in	$0x21,%al
+	pushw	%ax
+	in	$0xa1,%al
+	pushw	%ax
+	movb	$0x11,%al
+	outb	%al,$0x20
+	outb	%al,$0xa0
+	movb	%bl,%al
+	outb	%al,$0x21
+	movb	%bh,%al
+	outb	%al,$0xa1
+	movb	$0x4,%al
+	outb	%al,$0x21
+	movb	$0x2,%al
+	outb	%al,$0xa1
+	movb	$0x1,%al
+	outb	%al,$0x21
+	outb	%al,$0xa1
+	popw	%ax
+	outb	%al,$0xa1
+	popw	%ax
+	outb	%al,$0x21
+	retw
+
 
 # create the TSS in the memory pointed to by %di
 createtss:
@@ -167,8 +197,13 @@ gdt:
 
 gdtdesc:
 	.word	GDT_SIZE-1
+	.word	gdt		# endianness swap
 	.word	0x0
-	.word	gdt
+
+idtdesc:
+	.word	IDT_SZ-1
+	.word	IDT_SPC
+	.word	0x0
 
 	.code32
 

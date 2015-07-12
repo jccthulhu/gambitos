@@ -7,9 +7,11 @@
 	.set TSS_SPC,0x8020
 	.set TSS_SZ,0x65
 	.set IDT_SPC,0x8085
-	.set IDT_SZ,0x800
+	.set IDT_SZ,0x200
 	.set VIDT_SPC,0x9000
 	.set VIDT_SZ,0x10*0x4	# 32 bit pointers
+	.set BASE_INT,0x20*0x8
+	.set NUM_INT,0x10
 
 start:
 	# interrupts are for chumps
@@ -47,6 +49,7 @@ start.1:
 	loop	start.1
 	# fill in the IDT with permanent entries
 	movw	$IDT_SPC,%di
+	addw	$BASE_INT,%di
 	movw	isr_array,%si
 	movw	$VIDT_SZ,%cx
 	shr	$0x2,%cx	# 4 bytes per entry
@@ -56,20 +59,26 @@ start.2:
 	addw	$0x8,%di	# increment the IDT index
 	addw	$0x2,%si	# increment the isr target pointer
 	loop	start.2
+	# DEBUG
+	movb	$0x43,%al
+	callw	putchr
 	# set it as the IDT
 	lidt	idtdesc
+	# DEBUG
+	movb	$0x44,%al
+	callw	putchr
 	# reprogram the PIC
 	movw	$2820,%ax
 	callw	mappic
+	# DEBUG
+	movb	$0x45,%al
+	callw	putchr
 	# set protected mode
 	mov	%cr0,%eax
 	orb	$0x1,%al
 	mov	%eax,%cr0
 	# jump to 32 bit code
 	ljmp	main
-	# DEBUG
-	movb	$0x43,%al
-	callw	putchr
 	jmp	.
 
 mappic:
@@ -149,9 +158,7 @@ installisr:
 	movw	%ax,(%di)
 	movw	$0x0,0x6(%di)
 	# write the code selector (any code segment, really)
-	movw	$0x10,0x2(%di)
-	# write zero
-	movb	$0x0,0x4(%di)
+	movw	$0x08,0x2(%di)
 	# write type and attributes
 	xorb	%al,%al
 	orb	$0x80,%al	# set present
@@ -225,7 +232,7 @@ default_isr:
 	# TODO: something useful
 	# restore registers
 	popa
-	ret
+	iret
 
 # isr gates
 

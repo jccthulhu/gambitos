@@ -12,6 +12,8 @@
 	.set VIDT_SZ,0x10*0x4	# 32 bit pointers
 
 start:
+	# interrupts are for chumps
+	cli
 	# string ops increment
 	cld
 	# clear segments
@@ -60,12 +62,11 @@ start.2:
 	movw	$2820,%ax
 	callw	mappic
 	# set protected mode
-	# set up the TSS
-	movw	$TSS_SPC,%di
-	callw	createtss
-	movw	$TSS_SPC,%ax
-	ltr	%ax
+	mov	%cr0,%eax
+	orb	$0x1,%al
+	mov	%eax,%cr0
 	# jump to 32 bit code
+	ljmp	main
 	# DEBUG
 	movb	$0x43,%al
 	callw	putchr
@@ -111,7 +112,6 @@ createtss:
 
 seta20:
 	pushw	%ax
-	cli	# disable interrupts
 seta20.1:
 	inb	$0x64,%al	# get status
 	testb	$0x2,%al	# busy?
@@ -124,7 +124,6 @@ seta20.2:
 	jnz	seta20.2	# yes
 	movb	$0xdf,%al	# enable
 	outb	%al,$0x60	# 	A20
-	sti			# enable interrupts
 	popw	%ax
 	retw
 
@@ -206,6 +205,17 @@ idtdesc:
 	.word	0x0
 
 	.code32
+
+# 32 bit main
+main:
+	# set up the TSS
+	movw	$TSS_SPC,%di
+	callw	createtss
+	movw	$TSS_SPC,%ax
+	ltr	%ax
+	# enable interrupts
+	sti
+	jmp	.		# DEBUG
 
 # accepts the interrupt number in %eax
 default_isr:

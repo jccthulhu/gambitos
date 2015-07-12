@@ -13,6 +13,9 @@
 	.set BASE_INT,0x20*0x8
 	.set NUM_INT,0x10
 
+	.set DATA_SEL,0x10
+	.set TSS_SEL,0x18
+
 start:
 	# interrupts are for chumps
 	cli
@@ -52,6 +55,9 @@ start:
 	mov	%cr0,%eax
 	orb	$0x1,%al
 	mov	%eax,%cr0
+	# set up the TSS
+	movw	$TSS_SPC,%di
+	callw	createtss
 	# jump to 32 bit code
 	ljmp	$0x8,$main
 	jmp	.
@@ -85,19 +91,6 @@ mappic:
 	# restore registers
 	popw	%bx
 	popw	%ax
-	retw
-
-
-# create the TSS in the memory pointed to by %di
-createtss:
-	# save registers
-	# write the stack segment
-	movw	$0x10,0x8(%di)
-	# write the kernel stack base
-	movw	$STACK_TOP,0x4(%di)
-	# write the io bitmap
-	movw	$TSS_SZ,0x66(%di)
-	# restore registers
 	retw
 
 seta20:
@@ -175,7 +168,7 @@ gdt:
 	.byte	0xcf	# flags:high limit
 	.byte	0x0	# revenge of the zero base
 	# TSS segment
-	.word	TSS_SZ	# 100 byte limit
+	.word	TSS_SZ+TSS_SPC	# 100 byte limit
 	.word	TSS_SPC	# base
 	.byte	0x0	# zero the rest of the base
 	.byte	0x89	# access byte
@@ -192,16 +185,31 @@ idtdesc:
 	.word	IDT_SPC
 	.word	0x0
 
+# create the TSS in the memory pointed to by %di
+createtss:
+	# save registers
+	# write the stack segment
+	movw	$0x10,0x8(%di)
+	# write the kernel stack base
+	movw	$STACK_TOP,0x4(%di)
+	# write the io bitmap
+	movw	$TSS_SZ,0x66(%di)
+	# restore registers
+	retw
+
+
 	.code32
+
 
 # 32 bit main
 main:
-	# DEBUG
-	jmp	.
+	# set up the 32 bit stack
+	xorw	%ecx,%ecx
+	movb	$DATA_SEL,%cl
+	movw	%cx,%ss
 	# set up the TSS
-	movw	$TSS_SPC,%di
-	callw	createtss
-	movw	$TSS_SPC,%ax
+	movw	$TSS_SEL,%ax
+	jmp	.
 	ltr	%ax
 	# enable interrupts
 	sti

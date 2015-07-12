@@ -6,6 +6,10 @@
 	.set GDT_SIZE,0x20	# 4 8-byte entries
 	.set TSS_SPC,0x8020
 	.set TSS_SZ,0x65
+	.set IDT_SPC,0x8085
+	.set IDT_SZ,0x800
+	.set VIDT_SPC,0x9000
+	.set VIDT_SZ,0x10*0x4	# 32 bit pointers
 
 start:
 	# string ops increment
@@ -25,7 +29,32 @@ start:
 	# set the GDT
 	lgdt	gdtdesc
 	# set up the IDT
-	
+	# clear space for the IDT
+	movw	$IDT_SPC,%di
+	movw	$IDT_SZ,%cx
+	shr	$0x1,%cx
+start.0:
+	movw	$0x0,(%di)
+	loop	start.0
+	# create an abstraction over the IDT, call it VIDT
+	# fill in VIDT with default ISRs
+	movw	$VIDT_SPC,%di
+	movw	$VIDT_SZ,%cx
+start.1:
+	movw	$default_isr,(%di)
+	loop	start.1
+	# fill in the IDT with permanent entries
+	movw	$IDT_SPC,%di
+	movw	isr_array,%si
+	movw	$VIDT_SZ,%cx
+	shr	$0x2,%cx
+start.2:
+	movw	(%si),%ax
+	callw	installisr
+	addw	$0x8,%di
+	addw	$0x2,%si
+	loop	start.2
+	# reprogram the PIC
 	# set protected mode
 	# set up the TSS
 	movw	$TSS_SPC,%di
@@ -83,6 +112,28 @@ putchr:
 	popw	%bx
 	retw
 
+# installs the isr pointed to by %ax in the IDT pointed to by %di
+installisr:
+	# save registers
+	pushw	%ax
+	# write the offset
+	movw	%ax,(%di)
+	movw	$0x0,0x6(%di)
+	# write the code selector (any code segment, really)
+	movw	$0x10,0x2(%di)
+	# write zero
+	movb	$0x0,0x4(%di)
+	# write type and attributes
+	xorb	%al,%al
+	orb	$0x80,%al	# set present
+	orb	$0x60,%al	# set descriptor privilege level
+	andb	$0xef,%al	# clear storage segment
+	orb	$0x0e,%al	# 386 interrupt gate
+	movb	%al,0x5(%di)
+	# restore registers
+	popw	%ax
+	retw
+
 gdt:
 	# TODO: entries that we can live with
 	# null entry
@@ -118,4 +169,97 @@ gdtdesc:
 	.word	GDT_SIZE-1
 	.word	0x0
 	.word	gdt
+
+	.code32
+
+# accepts the interrupt number in %eax
+default_isr:
+	# save registers
+	pusha
+	# just gtfo
+	# TODO: something useful
+	# restore registers
+	popa
+	ret
+
+# isr gates
+
+isr_0:
+	pushl	$0x0
+	jmp	isr_gate
+isr_1:
+	pushl	$0x1
+	jmp	isr_gate
+isr_2:
+	pushl	$0x2
+	jmp	isr_gate
+isr_3:
+	pushl	$0x3
+	jmp	isr_gate
+isr_4:
+	pushl	$0x4
+	jmp	isr_gate
+isr_5:
+	pushl	$0x5
+	jmp	isr_gate
+isr_6:
+	pushl	$0x6
+	jmp	isr_gate
+isr_7:
+	pushl	$0x7
+	jmp	isr_gate
+isr_8:
+	pushl	$0x8
+	jmp	isr_gate
+isr_9:
+	pushl	$0x9
+	jmp	isr_gate
+isr_10:
+	pushl	$0xa
+	jmp	isr_gate
+isr_11:
+	pushl	$0xb
+	jmp	isr_gate
+isr_12:
+	pushl	$0xc
+	jmp	isr_gate
+isr_13:
+	pushl	$0xd
+	jmp	isr_gate
+isr_14:
+	pushl	$0xe
+	jmp	isr_gate
+isr_15:
+	pushl	$0xf
+
+isr_gate:
+	# save registers, just in case
+	pushal
+	# look up the actual interrupt handler from the VIDT
+	mov	$VIDT_SPC,%edi
+	mov	(%edi,%eax,4),%edi
+	# call it
+	call	*%edi
+	# restore registers
+	popal
+	ret
+
+isr_array:
+	.word	isr_0
+	.word	isr_1
+	.word	isr_2
+	.word	isr_3
+	.word	isr_4
+	.word	isr_5
+	.word	isr_6
+	.word	isr_7
+	.word	isr_8
+	.word	isr_9
+	.word	isr_10
+	.word	isr_11
+	.word	isr_12
+	.word	isr_13
+	.word	isr_14
+	.word	isr_15
+
 

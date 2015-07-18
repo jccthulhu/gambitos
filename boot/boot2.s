@@ -7,7 +7,7 @@
 	.set TSS_SPC,0x8020
 	.set TSS_SZ,0x65
 	.set IDT_SPC,0x8085
-	.set IDT_SZ,0x200
+	.set IDT_SZ,0x190
 	.set VIDT_SPC,0x9000
 	.set VIDT_SZ,0x10*0x4	# 32 bit pointers
 	.set BASE_INT,0x20*0x8
@@ -15,6 +15,8 @@
 
 	.set DATA_SEL,0x10
 	.set TSS_SEL,0x18
+
+	.set VIDEO_BASE,0xb8000
 
 start:
 	# interrupts are for chumps
@@ -35,22 +37,7 @@ start:
 	callw	seta20
 	# set the GDT
 	lgdt	gdtdesc
-	# set up the IDT
-	# set up the IVT
-	# DEBUG
-	movb	$0x43,%al
-	callw	putchr
-	# set it as the IDT
-	#lidt	idtdesc
-	# DEBUG
-	movb	$0x44,%al
-	callw	putchr
-	# reprogram the PIC
-	movw	$2820,%ax
-	callw	mappic
-	# DEBUG
-	movb	$0x45,%al
-	callw	putchr
+	# TODO: interrupt handlers
 	# set protected mode
 	mov	%cr0,%eax
 	orb	$0x1,%al
@@ -60,7 +47,6 @@ start:
 	callw	createtss
 	# jump to 32 bit code
 	ljmp	$0x8,$main
-	jmp	.
 
 mappic:
 	# save regsiers
@@ -197,9 +183,7 @@ createtss:
 	# restore registers
 	retw
 
-
 	.code32
-
 
 # 32 bit main
 main:
@@ -209,11 +193,24 @@ main:
 	movw	%cx,%ss
 	# set up the TSS
 	movw	$TSS_SEL,%ax
-	jmp	.
 	ltr	%ax
+	# DEBUG
+	mov	$isr_flag,%eax
+	movb	$0x0,%eax
 	# enable interrupts
-	sti
-	jmp	.		# DEBUG
+	#sti
+main.0:
+	mov	$isr_flag,%eax
+	movb	(%eax),%al
+	testb	%al,%al
+	je	main.1
+	# DEBUG
+	movl	$0x58,%eax
+	call	prputchr
+	mov	$isr_flag,%eax
+	movb	$0x0,(%eax)
+main.1:
+	jmp	main.0		# DEBUG
 
 # accepts the interrupt number in %eax
 default_isr:
@@ -224,6 +221,18 @@ default_isr:
 	# restore registers
 	popa
 	iret
+
+# prints the character in %eax
+prputchr:
+	# save registers
+	pushl	%edi
+	# put the character into video memory
+	movl	$VIDEO_BASE,%edi
+	movb	%al,(%edi)
+	movb	$0x7,0x1(%edi)
+	# restore registers
+	popl	%edi
+	ret
 
 # isr gates
 
@@ -305,4 +314,7 @@ isr_array:
 	.word	isr_14
 	.word	isr_15
 
+
+isr_flag:
+	.byte	0x0
 

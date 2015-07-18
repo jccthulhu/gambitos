@@ -30,9 +30,6 @@ start:
 	movw	%ax,%ss
 	# set up the stack
 	movw	$STACK_TOP,%sp
-	# DEBUG
-	movb	$0x42,%al
-	callw	putchr
 	# enable more memory than anyone would ever need
 	callw	seta20
 	# set the GDT
@@ -188,39 +185,14 @@ createtss:
 # 32 bit main
 main:
 	# set up the 32 bit stack
-	xorw	%ecx,%ecx
+	xor	%ecx,%ecx
 	movb	$DATA_SEL,%cl
 	movw	%cx,%ss
 	# set up the TSS
 	movw	$TSS_SEL,%ax
 	ltr	%ax
-	# DEBUG
-	mov	$isr_flag,%eax
-	movb	$0x0,%eax
-	# enable interrupts
-	#sti
 main.0:
-	mov	$isr_flag,%eax
-	movb	(%eax),%al
-	testb	%al,%al
-	je	main.1
-	# DEBUG
-	movl	$0x58,%eax
-	call	prputchr
-	mov	$isr_flag,%eax
-	movb	$0x0,(%eax)
-main.1:
 	jmp	main.0		# DEBUG
-
-# accepts the interrupt number in %eax
-default_isr:
-	# save registers
-	pusha
-	# just gtfo
-	# TODO: something useful
-	# restore registers
-	popa
-	iret
 
 # prints the character in %eax
 prputchr:
@@ -234,87 +206,4 @@ prputchr:
 	popl	%edi
 	ret
 
-# isr gates
-
-isr_0:
-	pushl	$0x0
-	jmp	isr_gate
-isr_1:
-	pushl	$0x1
-	jmp	isr_gate
-isr_2:
-	pushl	$0x2
-	jmp	isr_gate
-isr_3:
-	pushl	$0x3
-	jmp	isr_gate
-isr_4:
-	pushl	$0x4
-	jmp	isr_gate
-isr_5:
-	pushl	$0x5
-	jmp	isr_gate
-isr_6:
-	pushl	$0x6
-	jmp	isr_gate
-isr_7:
-	pushl	$0x7
-	jmp	isr_gate
-isr_8:
-	pushl	$0x8
-	jmp	isr_gate
-isr_9:
-	pushl	$0x9
-	jmp	isr_gate
-isr_10:
-	pushl	$0xa
-	jmp	isr_gate
-isr_11:
-	pushl	$0xb
-	jmp	isr_gate
-isr_12:
-	pushl	$0xc
-	jmp	isr_gate
-isr_13:
-	pushl	$0xd
-	jmp	isr_gate
-isr_14:
-	pushl	$0xe
-	jmp	isr_gate
-isr_15:
-	pushl	$0xf
-
-isr_gate:
-	# save registers, just in case
-	pushal
-	# look up the actual interrupt handler from the VIDT
-	mov	$VIDT_SPC,%edi
-	mov	(%edi,%eax,4),%edi
-	# call it
-	call	*%edi
-	# restore registers
-	popal
-	ret
-
-isr_array:
-	.word	isr_0
-	.word	isr_1
-	.word	isr_2
-	.word	isr_3
-	.word	isr_4
-	.word	isr_5
-	.word	isr_6
-	.word	isr_7
-	.word	isr_8
-	.word	isr_9
-	.word	isr_10
-	.word	isr_11
-	.word	isr_12
-	.word	isr_13
-	.word	isr_14
-	.word	isr_15
-
-
-isr_flag:
-	.byte	0x0
 

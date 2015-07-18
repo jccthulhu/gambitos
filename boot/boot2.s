@@ -191,19 +191,103 @@ main:
 	# set up the TSS
 	movw	$TSS_SEL,%ax
 	ltr	%ax
+	# DEBUG
+	movl	$port_msg,%eax
+	call	prputstr
+	call	prputn
 main.0:
 	jmp	main.0		# DEBUG
+
+# printing stuff
+current_video_mem:
+	.long	VIDEO_BASE
+	.byte	0x0		# x
+	.byte	0x0		# y
+
+# clear the screen
+
+# print the string pointed to by %eax
+prputstr:
+	# save regs
+	pushl	%eax
+	pushl	%edi
+	movl	%eax,%edi
+	xorl	%eax,%eax
+prputstr.0:
+	movb	(%edi),%al
+	testb	%al,%al
+	je	prputstr.1
+	call	prputchr
+	incl	%edi
+	jmp	prputstr.0
+prputstr.1:
+	# restore regs
+	popl	%edi
+	popl	%eax
+	ret
+
+# print a new line
+prputn:
+	# save regs
+	pushl	%eax
+prputn.0:
+	# load current x
+	movl	$current_video_mem,%eax
+	movb	0x4(%eax),%al
+	# is it zero?
+	testb	%al,%al
+	# if yes, exit
+	jz	prputn.1
+	# print space
+	movl	$0x20,%eax
+	call	prputchr
+	# loop
+	jmp	prputn.0
+prputn.1:
+	# restore regs
+	popl	%eax
+	ret
 
 # prints the character in %eax
 prputchr:
 	# save registers
 	pushl	%edi
+	pushl	%esi
+	pushl	%eax
 	# put the character into video memory
-	movl	$VIDEO_BASE,%edi
-	movb	%al,(%edi)
-	movb	$0x7,0x1(%edi)
+	movl	$current_video_mem,%edi
+	movl	(%edi),%esi
+	movb	%al,(%esi)
+	movb	$0x7,0x1(%esi)
+	# increment the video memory pointer
+	addl	$0x2,%esi
+	movl	%esi,(%edi)
+	# increment x
+	xorl	%eax,%eax
+	movb	0x4(%edi),%al		# eax = current_video_mem.x
+	incl	%eax			# x++
+	movl	$0x50,%esi		# esi = 81
+	cmpl	%eax,%esi		# x == 81?
+	jne	prputchr.0
+	# if x == 81, x = 0, y++
+	xorl	%eax,%eax		# x = 0
+	movb	%al,0x4(%edi)		# save x
+	movb	0x5(%edi),%al		# al = y
+	incl	%eax			# y++
+	movb	%al,0x5(%edi)		# save y
+	jmp	prputchr.1
+prputchr.0:
+	# if x != 81, save x
+	movb	%al,0x4(%edi)
+prputchr.1:
 	# restore registers
+	popl	%eax
+	popl	%esi
 	popl	%edi
 	ret
 
 
+# some data!
+port_msg:
+	.ascii	"Welcome to 32 bit protected mode!"
+	.byte	0x0

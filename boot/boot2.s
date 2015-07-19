@@ -203,12 +203,6 @@ main:
 	movl	$port_msg,%eax
 	call	prputstr
 	call	prputn
-
-	movl	$long_mode_comp_msg,%eax
-	call	prputstr
-	call	prputn
-	
-
 	# try to jump to 64 bit mode
 	# see if we can check for 64 bit support
 	movl	$0x80000000,%eax

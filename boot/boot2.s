@@ -192,6 +192,7 @@ main:
 	movw	$TSS_SEL,%ax
 	ltr	%ax
 	# DEBUG
+	call	prclrscrn
 	movl	$port_msg,%eax
 	call	prputstr
 	call	prputn
@@ -205,6 +206,25 @@ current_video_mem:
 	.byte	0x0		# y
 
 # clear the screen
+prclrscrn:
+	# save regs
+	pushl	%eax
+	pushl	%ecx
+	movl	$current_video_mem,%eax
+	movl	$VIDEO_BASE,(%eax)
+	movw	$0x0,0x4(%eax)
+	movl	$0x25,%ecx
+prclrscrn.0:
+	call	prputn
+	loop	prclrscrn.0
+	movl	$current_video_mem,%eax
+	movl	$VIDEO_BASE,(%eax)
+	movw	$0x0,0x4(%eax)
+	movl	$0x25,%ecx
+	# restore regs
+	popl	%ecx
+	popl	%eax
+	ret
 
 # print the string pointed to by %eax
 prputstr:
@@ -231,6 +251,9 @@ prputn:
 	# save regs
 	pushl	%eax
 prputn.0:
+	# print space
+	movl	$0x20,%eax
+	call	prputchr
 	# load current x
 	movl	$current_video_mem,%eax
 	movb	0x4(%eax),%al
@@ -238,9 +261,6 @@ prputn.0:
 	testb	%al,%al
 	# if yes, exit
 	jz	prputn.1
-	# print space
-	movl	$0x20,%eax
-	call	prputchr
 	# loop
 	jmp	prputn.0
 prputn.1:

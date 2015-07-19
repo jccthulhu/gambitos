@@ -18,6 +18,11 @@
 
 	.set VIDEO_BASE,0xb8000
 
+	.set PML4T,0x10000
+	.set PDPT,0x11000
+	.set PDT,0x12000
+	.set PT,0x13000
+
 start:
 	# interrupts are for chumps
 	cli
@@ -213,17 +218,123 @@ main:
 	movl	$do_long_mode_msg,%eax
 	call	prputstr
 	call	prputn
+	# enforce that paging is disabled
+	call	disable_paging
+	# set up paging
+	call	create_page_tables
+	call	enable_pae
+	call	enable_lm
+	# reenable paging
+	call	enable_paging
+	# debugging
+	movl	$long_mode_comp_msg,%eax
+	call	prputstr
+	call	prputn
+	# make the leap to 64 bit code
 	jmp	.
 main.0:
 	movl	$no_cpuid_msg,%eax
 	call	prputstr
 	call	prputn
-	jmp	.
+	jmp	main.2
 main.1:
 	movl	$no_long_mode_msg,%eax
 	call	prputstr
 	call	prputn
+	jmp	main.2
+main.2:
+	# TODO: Either load a 32 bit version of the kernel or Michael Bay-splode
+	# because we don't support 32 bit CPUs
 	jmp	.
+
+# utils
+disable_paging:
+	pushl	%eax
+	movl	%cr0,%eax
+	andl	$0x7FFFFFFF,%eax
+	movl	%eax,%cr0
+	movl	$pgng_off_msg,%eax
+	call	prputstr
+	call	prputn
+	popl	%eax
+	ret
+
+enable_paging:
+	pushl	%eax
+	movl	%cr0,%eax
+	orl	$0x80000000,%eax
+	movl	%eax,%cr0
+	movl	$pgng_on_msg,%eax
+	call	prputstr
+	call	prputn
+	popl	%eax
+	ret
+
+enable_pae:
+	pushl	%eax
+	movl	%cr4,%eax
+	orl	$0x10,%eax
+	movl	%eax,%cr4
+	popl	%eax
+	ret
+
+enable_lm:
+	pushl	%ecx
+	pushl	%eax
+	movl	$0xC0000080,%ecx
+	rdmsr
+	orl	$0x100,%eax
+	wrmsr
+	popl	%eax
+	popl	%ecx
+	ret
+
+create_page_tables:
+	# save registers
+	pushl	%eax
+	pushl	%ebx
+	pushl	%ecx
+	pushl	%edi
+	# clear the tables
+	movl	$PML4T,%edi
+	movl	$0x1000,%ecx
+create_page_tables.1:
+	movl	$0x0,(%edi)
+	addl	$0x4,%edi
+	loop	create_page_tables.1
+	# make the first entry of the PML4T point to the first PDPT
+	movl	$PML4T,%edi	# load &PML4T
+	movl	$PDPT,%eax	# load &PDPT
+	orl	$0x03,%eax	# set PDPT to be P/R/W
+	movl	%eax,(%edi)	# PML4T[0] = PDPT
+	# make the first entry of the PDPT point to the first PDT
+	movl	$PDPT,%edi
+	movl	$PDT,%eax
+	orl	$0x03,%eax
+	movl	%eax,(%edi)
+	# make the first entry of the PDT point to the first PT
+	movl	$PDT,%edi
+	movl	$PT,%eax
+	orl	$0x03,%eax
+	movl	%eax,(%edi)
+	# identity map the PT
+	movl	$PT,%edi
+	movl	$0x200,%ecx
+	movl	$0x03,%ebx
+create_page_tables.0:
+	movl	%ebx,(%edi)
+	addl	$0x08,%edi
+	addl	$0x1000,%ebx
+	loop	create_page_tables.0
+	# set all this shit to be canonical
+	movl	$PML4T,%eax
+	movl	%eax,%cr3
+	# restore registers
+	popl	%edi
+	popl	%ecx
+	popl	%ebx
+	popl	%eax
+	ret
 
 # printing stuff
 current_video_mem:
@@ -343,9 +454,21 @@ no_cpuid_msg:
 	.byte	0x0
 
 no_long_mode_msg:
-	.ascii	"Your process does not support 64 bit mode"
+	.ascii	"Your processor does not support 64 bit mode"
 	.byte	0x0
 
 do_long_mode_msg:
 	.ascii	"Proceeding with 64 bit boot up"
+	.byte	0x0
+
+pgng_off_msg:
+	.ascii	"Disabled paging"
+	.byte	0x0
+
+pgng_on_msg:
+	.ascii	"Enabled paging"
+	.byte	0x0
+
+long_mode_comp_msg:
+	.ascii	"Welcome to 64 bit compatibility mode!"
 	.byte	0x0

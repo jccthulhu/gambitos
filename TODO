@@ -10,6 +10,7 @@ bootloader	(one for each target architecture)
 		32 -> 64 bit
 		* install TSS
 		* enable other processors
+		enable floating point/vector instructions
 		install IVT (real mode interrupt handlers)
 		install IDT (protected mode interrupt handlers)
 		load the kernel

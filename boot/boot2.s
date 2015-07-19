@@ -196,8 +196,34 @@ main:
 	movl	$port_msg,%eax
 	call	prputstr
 	call	prputn
+	# try to jump to 64 bit mode
+	# see if we can check for 64 bit support
+	movl	$0x80000000,%eax
+	cpuid
+	movl	$0x80000001,%ebx
+	cmpl	%eax,%ebx
+	jg	main.0
+	# check for 64 bit support
+	movl	$0x80000001,%eax
+	cpuid
+	andl	$0x20000000,%edx
+	testl	%edx,%edx
+	je	main.1
+	# actually start going to 64 bit mode
+	movl	$do_long_mode_msg,%eax
+	call	prputstr
+	call	prputn
+	jmp	.
 main.0:
-	jmp	main.0		# DEBUG
+	movl	$no_cpuid_msg,%eax
+	call	prputstr
+	call	prputn
+	jmp	.
+main.1:
+	movl	$no_long_mode_msg,%eax
+	call	prputstr
+	call	prputn
+	jmp	.
 
 # printing stuff
 current_video_mem:
@@ -310,4 +336,16 @@ prputchr.1:
 # some data!
 port_msg:
 	.ascii	"Welcome to 32 bit protected mode!"
+	.byte	0x0
+
+no_cpuid_msg:
+	.ascii	"Your processor does not support CPUID extended"
+	.byte	0x0
+
+no_long_mode_msg:
+	.ascii	"Your process does not support 64 bit mode"
+	.byte	0x0
+
+do_long_mode_msg:
+	.ascii	"Proceeding with 64 bit boot up"
 	.byte	0x0

@@ -23,6 +23,8 @@
 	.set PDT,0x12000
 	.set PT,0x13000
 
+	.set GDT64_SZ,0x18
+
 start:
 	# interrupts are for chumps
 	cli
@@ -230,8 +232,9 @@ main:
 	movl	$long_mode_comp_msg,%eax
 	call	prputstr
 	call	prputn
+	lgdt	gdt64desc
 	# make the leap to 64 bit code
-	jmp	.
+	ljmp	$0x08,$main64
 main.0:
 	movl	$no_cpuid_msg,%eax
 	call	prputstr
@@ -443,6 +446,19 @@ prputchr.1:
 	popl	%edi
 	ret
 
+# 64 bit target
+	.code64
+
+main64:
+	# set up the registers...*sigh* again
+	cli
+	jmp	.
+	movw	$0x10,%ax
+	movw	%ax,%ds
+	movw	%ax,%es
+	movw	%ax,%fs
+	movw	%ax,%gs
+	jmp	.
 
 # some data!
 port_msg:
@@ -472,3 +488,31 @@ pgng_on_msg:
 long_mode_comp_msg:
 	.ascii	"Welcome to 64 bit compatibility mode!"
 	.byte	0x0
+
+gdt64:
+	# null entry
+	.word	0x0
+	.word	0x0
+	.byte	0x0
+	.byte	0x10
+	.byte	0x20
+	.byte	0x0
+	# code
+	.word	0x0
+	.word	0x0
+	.byte	0x0
+	.byte	0x98
+	.byte	0x20
+	.byte	0x0
+	# data
+	.word	0x0
+	.word	0x0
+	.byte	0x0
+	.byte	0x90
+	.byte	0x20
+	.byte	0x0
+
+gdt64desc:
+	.word	GDT64_SZ-1
+	.quad	gdt64
+

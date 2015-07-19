@@ -203,6 +203,12 @@ main:
 	movl	$port_msg,%eax
 	call	prputstr
 	call	prputn
+
+	movl	$long_mode_comp_msg,%eax
+	call	prputstr
+	call	prputn
+	
+
 	# try to jump to 64 bit mode
 	# see if we can check for 64 bit support
 	movl	$0x80000000,%eax
@@ -446,20 +452,6 @@ prputchr.1:
 	popl	%edi
 	ret
 
-# 64 bit target
-	.code64
-
-main64:
-	# set up the registers...*sigh* again
-	cli
-	jmp	.
-	movw	$0x10,%ax
-	movw	%ax,%ds
-	movw	%ax,%es
-	movw	%ax,%fs
-	movw	%ax,%gs
-	jmp	.
-
 # some data!
 port_msg:
 	.ascii	"Welcome to 32 bit protected mode!"
@@ -487,6 +479,69 @@ pgng_on_msg:
 
 long_mode_comp_msg:
 	.ascii	"Welcome to 64 bit compatibility mode!"
+	.byte	0x0
+
+
+
+# 64 bit target
+	.code64
+
+main64:
+	# set up the registers...*sigh* again
+	cli
+	movw	$0x10,%ax
+	movw	%ax,%ds
+	movw	%ax,%es
+	movw	%ax,%fs
+	movw	%ax,%gs
+	jmp	.
+	
+# printing stuff
+current_video_mem64:
+	.quad	VIDEO_BASE
+	.byte	0x0		# x
+	.byte	0x0		# y
+
+prputchr64:
+	# save regs
+	push	%rdi
+	push	%rsi
+	push	%rax
+	# put the character into video memory
+	xor	%rsi,%rsi
+	mov	$current_video_mem64,%rdi
+	movl	(%rdi),%esi
+	movb	%al,(%rsi)
+	movb	$0x7,0x1(%rsi)
+	# increment the video memory pointer
+	add	$0x2,%rsi
+	movl	%esi,(%rdi)
+	# increment x
+	xor	%rax,%rax
+	movb	0x4(%rdi),%al
+	inc	%rax
+	mov	$0x50,%rsi
+	cmp	%rax,%rsi
+	jne	prputchr64.0
+	# if x == 81, x = 0, y++
+	xor	%rax,%rax
+	movb	%al,0x4(%rdi)
+	movb	0x5(%rdi),%al
+	inc	%rax
+	movb	%al,0x5(%rdi)
+	jmp	prputchr64.1
+prputchr64.0:
+	# if x != 81, save x
+	movb	%al,0x4(%rdi)
+prputchr64.1:
+	# restore regs
+	pop	%rax
+	pop	%rsi
+	pop	%rdi
+	ret
+
+full_long_mode_msg:
+	.ascii	"Welcome to full 64 bit mode!"
 	.byte	0x0
 
 gdt64:

@@ -189,6 +189,8 @@ main.2:
 	jmp	.
 
 # utils
+
+# disable paging; no parameters or return value
 disable_paging:
 	pushl	%eax			# save the value in %eax to the stack
 	movl	%cr0,%eax		# load the control register
@@ -200,6 +202,7 @@ disable_paging:
 	popl	%eax			# restore %eax from the stack
 	ret				# exit
 
+# enable paging; no parameters or return value
 enable_paging:
 	pushl	%eax			# save the value in %eax to the stack
 	movl	%cr0,%eax		# load the control register
@@ -211,6 +214,7 @@ enable_paging:
 	popl	%eax			# restore the value of %eax from the stack
 	ret				# exit
 
+# enable physical address extension (PAE); no parameters or return value
 enable_pae:
 	pushl	%eax			# save value of register onto stack
 	movl	%cr4,%eax		# load the control register
@@ -219,63 +223,66 @@ enable_pae:
 	popl	%eax			# restore value of register from stack
 	ret
 
+# enable long mode; no parameters or return value
 enable_lm:
+	# save register values onto the stack
 	pushl	%ecx
 	pushl	%eax
-	movl	$0xC0000080,%ecx
-	rdmsr
-	orl	$0x100,%eax
-	wrmsr
+	movl	$0xC0000080,%ecx	# select the EFER Moder Specific Register (MSR)
+	rdmsr				# read the MSR
+	orl	$0x100,%eax		# set the long mode bit
+	wrmsr				# save the MSR
+	# restore register values from the stack
 	popl	%eax
 	popl	%ecx
-	ret
+	ret				# exit
 
 create_page_tables:
-	# save registers
+	# save register values onto the stack
 	pushl	%eax
 	pushl	%ebx
 	pushl	%ecx
 	pushl	%edi
-	# clear the tables
-	movl	$PML4T,%edi
-	movl	$0x1000,%ecx
+	# loop to clear the tables
+	movl	$PML4T,%edi		# load pointer to the start of the page table construct
+	movl	$0x1000,%ecx		# set loop counter to the size of the page table construct in doublewords
 create_page_tables.1:
-	movl	$0x0,(%edi)
-	addl	$0x4,%edi
-	loop	create_page_tables.1
+	movl	$0x0,(%edi)		# write zero to the current index of the page table construct
+	addl	$0x4,%edi		# increment the page table construct pointer
+	loop	create_page_tables.1	# decrement %ecx, check for zero and jump to the start of the loop and continue
 	# make the first entry of the PML4T point to the first PDPT
 	movl	$PML4T,%edi	# load &PML4T
 	movl	$PDPT,%eax	# load &PDPT
-	orl	$0x03,%eax	# set PDPT to be P/R/W
-	movl	%eax,(%edi)	# PML4T[0] = PDPT
+	orl	$0x03,%eax	# set PDPT to be Present/Readable/Writable
+	movl	%eax,(%edi)	# PML4T[0] = &PDPT
 	# make the first entry of the PDPT point to the first PDT
-	movl	$PDPT,%edi
-	movl	$PDT,%eax
-	orl	$0x03,%eax
-	movl	%eax,(%edi)
+	movl	$PDPT,%edi	# load &PDPT
+	movl	$PDT,%eax	# load $PDT
+	orl	$0x03,%eax	# set the PDT to be Present/Readable/Writable
+	movl	%eax,(%edi)	# PDPT[0] = &PDT
 	# make the first entry of the PDT point to the first PT
-	movl	$PDT,%edi
-	movl	$PT,%eax
-	orl	$0x03,%eax
-	movl	%eax,(%edi)
+	movl	$PDT,%edi	# load &PDT
+	movl	$PT,%eax	# load &PT
+	orl	$0x03,%eax	# set the PT to be Present/Readable/Writable
+	movl	%eax,(%edi)	# PDT[0] = &PT
 	# identity map the PT
-	movl	$PT,%edi
-	movl	$0x200,%ecx
-	movl	$0x03,%ebx
+	movl	$PT,%edi	# load &PT
+	movl	$0x200,%ecx	# set the loop counter to the size of the Page Table (PT) in quadwords
+	movl	$0x03,%ebx	# each page is Present/Readable/Writable
 create_page_tables.0:
-	movl	%ebx,(%edi)
-	addl	$0x08,%edi
-	addl	$0x1000,%ebx
-	loop	create_page_tables.0
+	movl	%ebx,(%edi)	# write the page address to the page table
+	addl	$0x08,%edi	# increment the page table index
+	addl	$0x1000,%ebx	# increment the page address
+	loop	create_page_tables.0	# jump to the start of the loop and continue
 	# set all this shit to be canonical
-	movl	$PML4T,%eax
-	movl	%eax,%cr3
-	# restore registers
+	movl	$PML4T,%eax	# load &PML4T
+	movl	%eax,%cr3	# save PML4T as the location of the PML4T
+	# restore register values from the stack
 	popl	%edi
 	popl	%ecx
 	popl	%ebx
 	popl	%eax
-	ret
+	ret			# exit this subroutine
 
 # printing stuff
 current_video_mem:
@@ -285,7 +292,7 @@ current_video_mem:
 
 # clear the screen
 prclrscrn:
-	# save regs
+	# save register values to the stack
 	pushl	%eax
 	pushl	%ecx
 	movl	$current_video_mem,%eax
@@ -299,7 +306,7 @@ prclrscrn.0:
 	movl	$VIDEO_BASE,(%eax)
 	movw	$0x0,0x4(%eax)
 	movl	$0x25,%ecx
-	# restore regs
+	# restore register values to the stack
 	popl	%ecx
 	popl	%eax
 	ret

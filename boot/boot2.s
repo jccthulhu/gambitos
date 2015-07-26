@@ -1,88 +1,50 @@
 	.globl	start
 	.code16
 
-	.set STACK_TOP,0x7c00
-	.set ORG_TARG,0x600
-	.set GDT_SIZE,0x20	# 4 8-byte entries
-	.set TSS_SPC,0x8020
-	.set TSS_SZ,0x65
-	.set IDT_SPC,0x8085
-	.set IDT_SZ,0x190
-	.set VIDT_SPC,0x9000
-	.set VIDT_SZ,0x10*0x4	# 32 bit pointers
-	.set BASE_INT,0x20*0x8
-	.set NUM_INT,0x10
+	.set STACK_TOP,0x7c00	# stack origin
+	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
+	.set TSS_SPC,0x8020	# location of the Task State Segment (TSS)
+	.set TSS_SZ,0x65	# size of the TSS
+	.set IDT_SPC,0x8085	# location of the Interrupt Descriptor Table (IDT)
+	.set IDT_SZ,0x190	# size of the IDT
 
-	.set DATA_SEL,0x10
-	.set TSS_SEL,0x18
+	.set DATA_SEL,0x10	# Data segment index in the GDT
+	.set TSS_SEL,0x18	# TSS segment index in the (32 bit) GDT
 
-	.set VIDEO_BASE,0xb8000
+	.set VIDEO_BASE,0xb8000	# the start of video memory (for printing to screen)
 
-	.set PML4T,0x10000
-	.set PDPT,0x11000
-	.set PDT,0x12000
-	.set PT,0x13000
+	.set PML4T,0x10000	# the 4th level of the paging hierarchy
+	.set PDPT,0x11000	# the 3rd level of the paging hierarchy
+	.set PDT,0x12000	# the 2nd level of the paging hierarchy
+	.set PT,0x13000		# the page table (1st level)
 
-	.set GDT64_SZ,0x18
+	.set GDT64_SZ,0x18	# the size of the 64 bit GDT
 
 start:
 	# interrupts are for chumps
-	cli
-	# string ops increment
-	cld
-	# clear segments
+	cli			# disable interrupts
+	cld			# cause string operations to increment
+	# clear segment selectors
 	xorw	%ax,%ax
 	movw	%ax,%es
 	movw	%ax,%ds
 	movw	%ax,%ss
-	# set up the stack
-	movw	$STACK_TOP,%sp
+	movw	$STACK_TOP,%sp	# set up the stack
 	# enable more memory than anyone would ever need
-	callw	seta20
-	# set the GDT
-	lgdt	gdtdesc
+	callw	seta20		# by setting the A20 line, we enable >1MB of memory
+	lgdt	gdtdesc		# set the GDT
 	# TODO: interrupt handlers
 	# set protected mode
-	mov	%cr0,%eax
-	orb	$0x1,%al
-	mov	%eax,%cr0
+	mov	%cr0,%eax	# load control register zero
+	orb	$0x1,%al	# set the PM bit
+	mov	%eax,%cr0	# write the control register
 	# set up the TSS
 	movw	$TSS_SPC,%di
 	callw	createtss
-	# jump to 32 bit code
-	ljmp	$0x8,$main
+	ljmp	$0x8,$main	# jump to the 32 bit entry point
 
-mappic:
-	# save regsiers
-	pushw	%ax
-	pushw	%bx
-	in	$0x21,%al
-	pushw	%ax
-	in	$0xa1,%al
-	pushw	%ax
-	movb	$0x11,%al
-	outb	%al,$0x20
-	outb	%al,$0xa0
-	movb	%bl,%al
-	outb	%al,$0x21
-	movb	%bh,%al
-	outb	%al,$0xa1
-	movb	$0x4,%al
-	outb	%al,$0x21
-	movb	$0x2,%al
-	outb	%al,$0xa1
-	movb	$0x1,%al
-	outb	%al,$0x21
-	outb	%al,$0xa1
-	popw	%ax
-	outb	%al,$0xa1
-	popw	%ax
-	outb	%al,$0x21
-	# restore registers
-	popw	%bx
-	popw	%ax
-	retw
-
+# sets the A20 line to enable >1MB of memory
+# accepts no parameters, returns no values
 seta20:
 	pushw	%ax
 seta20.1:
@@ -100,42 +62,26 @@ seta20.2:
 	popw	%ax
 	retw
 
-# prints character in %al
+# print a character to the screen
+# params:
+#	al	the character (ASCII value)
 putchr:
-	# save registers
+	# save register values to the stack
 	pushw	%bx
 	pushw	%ax
-	movw	$0x7,%bx
-	movb	$0xe,%ah
-	int	$0x10
+	movw	$0x7,%bx	# white characters on black background
+	movb	$0xe,%ah	# bios call E
+	int	$0x10		# trigger the interrupt
 	# TODO: error handling
-	# restore registers
+	# restore register values from the stack
 	popw	%ax
 	popw	%bx
 	retw
 
-# installs the isr pointed to by %ax in the IDT pointed to by %di
-installisr:
-	# save registers
-	pushw	%ax
-	# write the offset
-	movw	%ax,(%di)
-	movw	$0x0,0x6(%di)
-	# write the code selector (any code segment, really)
-	movw	$0x08,0x2(%di)
-	# write type and attributes
-	xorb	%al,%al
-	orb	$0x80,%al	# set present
-	orb	$0x60,%al	# set descriptor privilege level
-	andb	$0xef,%al	# clear storage segment
-	orb	$0x0e,%al	# 386 interrupt gate
-	movb	%al,0x5(%di)
-	# restore registers
-	popw	%ax
-	retw
-
+# this is the global descriptor table, which describes memory segments;
+# we currently use the bare minimum table because this table is quickly
+# abandoned in our jump to 64 bit
 gdt:
-	# TODO: entries that we can live with
 	# null entry
 	.word	0x0	# zero limit
 	.word	0x0	# zero base
@@ -170,21 +116,13 @@ gdtdesc:
 	.word	gdt		# endianness swap
 	.word	0x0
 
-idtdesc:
-	.word	IDT_SZ-1
-	.word	IDT_SPC
-	.word	0x0
-
-# create the TSS in the memory pointed to by %di
+# create the TSS in memory
+# params:
+#	di	a pointer to the TSS
 createtss:
-	# save registers
-	# write the stack segment
-	movw	$0x10,0x8(%di)
-	# write the kernel stack base
-	movw	$STACK_TOP,0x4(%di)
-	# write the io bitmap
-	movw	$TSS_SZ,0x66(%di)
-	# restore registers
+	movw	$0x10,0x8(%di)		# write the stack segment
+	movw	$STACK_TOP,0x4(%di)	# write the kernel stack base
+	movw	$TSS_SZ,0x66(%di)	# write the io bitmap
 	retw
 
 	.code32

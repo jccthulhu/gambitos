@@ -479,7 +479,9 @@ long_mode_comp_msg:
 	.code64
 
 main64:
-	# set up the registers...*sigh* again
+	mov	$VIDEO_BASE,%rdi
+	movb	$0x41,(%rdi)
+	movb	$0x7,0x1(%rdi)
 	jmp	.
 	
 gdt64:

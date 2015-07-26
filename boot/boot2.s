@@ -306,23 +306,23 @@ prclrscrn.0:
 
 # print the string pointed to by %eax
 prputstr:
-	# save regs
-	pushl	%eax
+	# save register values to the stack
+	pushl	%eax		
 	pushl	%edi
-	movl	%eax,%edi
-	xorl	%eax,%eax
+	movl	%eax,%edi	# save string pointer to %edi
+	xorl	%eax,%eax	# %eax = 0
 prputstr.0:
-	movb	(%edi),%al
-	testb	%al,%al
-	je	prputstr.1
-	call	prputchr
-	incl	%edi
-	jmp	prputstr.0
+	movb	(%edi),%al	# load the character pointed to by the string pointer
+	testb	%al,%al		# test the character for 0
+	je	prputstr.1	# if the character is 0, we're done and can exit
+	call	prputchr	# print out the character
+	incl	%edi		# increment the string pointer
+	jmp	prputstr.0	# jump to the start of the loop to continue
 prputstr.1:
-	# restore regs
+	# restore register values from the stack
 	popl	%edi
 	popl	%eax
-	ret
+	ret			# exit subroutine
 
 # print a new line
 prputn:
@@ -413,14 +413,43 @@ long_mode_comp_msg:
 	.ascii	"Welcome to 64 bit compatibility mode!"
 	.byte	0x0
 
+long_mode_full_msg:
+	.ascii	"Welcome to full 64 bit mode!"
+	.byte	0x0
+
 # 64 bit target
 	.code64
 
 main64:
-	mov	$VIDEO_BASE,%rdi
-	movb	$0x41,(%rdi)
-	movb	$0x7,0x1(%rdi)
+	mov	$long_mode_full_msg,%rax
+	call	prputstr64
 	jmp	.
+
+# long mode printing stuff
+
+# print a string in long mode
+# params:
+#	rax	Pointer to the string
+prputstr64:
+	# save register values to the stack
+	pushq	%rax
+	pushq	%rdi
+	mov	%rax,%rdi	# save the pointer in a pointer register
+	xorq	%rax,%rax	# perma-clear the upper 48 bits of %rax
+prputstr64.0:
+	movb	(%rdi),%al	# load the character being pointed to
+	testb	%al,%al		# test the character for zero
+	je	prputstr64.1	# if the character is zero, we've reached the end
+				# of the string and can exit
+	call	prputchr	# print the character
+				# the 32 bit version seems to work in long mode
+	inc	%rdi		# increment the string pointer
+	jmp	prputstr64.0	# jump to the start of the loop to continue
+prputstr64.1:
+	# restore register values from the stack
+	popq	%rdi
+	popq	%rax
+	ret			# exit
 	
 gdt64:
 	# null entry

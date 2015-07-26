@@ -137,52 +137,52 @@ main:
 	movw	$TSS_SEL,%ax
 	ltr	%ax
 	# DEBUG
-	call	prclrscrn
-	movl	$port_msg,%eax
-	call	prputstr
-	call	prputn
+	call	prclrscrn		# call the subroutine that clears the screen
+	movl	$port_msg,%eax		# load the 32 bit protected mode welcome message
+	call	prputstr		# print the message to the screen
+	call	prputn			# print a new line
 	# try to jump to 64 bit mode
-	# see if we can check for 64 bit support
-	movl	$0x80000000,%eax
-	cpuid
-	movl	$0x80000001,%ebx
+	# check for CPUID extended
+	movl	$0x80000000,%eax	# CPUID parameter; asks for the highest value supported
+	cpuid				# get CPU information
+	movl	$0x80000001,%ebx	# see if the CPUID operation can take this value
 	cmpl	%eax,%ebx
-	jg	main.0
+	jg	main.0			# if the CPUID operation does not support extended features
+					# jump to an error state
 	# check for 64 bit support
-	movl	$0x80000001,%eax
-	cpuid
-	andl	$0x20000000,%edx
-	testl	%edx,%edx
-	je	main.1
+	movl	$0x80000001,%eax	# CPUID parameter; asks for list of supported features
+	cpuid				# get CPU information
+	andl	$0x20000000,%edx	# mask out the long mode bit
+	testl	%edx,%edx		# check that the long mode bit is set;
+	je	main.1			# if the long mode bit is clear (zero), jump to error state
 	# actually start going to 64 bit mode
-	movl	$do_long_mode_msg,%eax
-	call	prputstr
-	call	prputn
-	# enforce that paging is disabled
-	call	disable_paging
-	# set up paging
-	call	create_page_tables
-	call	enable_pae
-	call	enable_lm
-	# reenable paging
-	call	enable_paging
+	movl	$do_long_mode_msg,%eax	# load a message notifying the user of our intent to boot into
+					# long mode
+	call	prputstr		# print the message
+	call	prputn			# print a new line
+	call	disable_paging		# disable paging so that we can construct the page table
+	call	create_page_tables	# call the subroutine to create the page tables
+	call	enable_pae		# enable physical address extension
+	call	enable_lm		# enable long mode
+	call	enable_paging		# enable paging
 	# debugging
-	movl	$long_mode_comp_msg,%eax
-	call	prputstr
-	call	prputn
-	lgdt	gdt64desc
-	# make the leap to 64 bit code
-	ljmp	$0x08,$main64
+	movl	$long_mode_comp_msg,%eax	# load a message telling the user that we are now in 
+					# IA-32e long mode compatibility mode
+	call	prputstr		# print the message
+	call	prputn			# print a new line
+	lgdt	gdt64desc		# load the long mode descriptor table;
+					# see, I told you we were just gonna ditch that other one
+	ljmp	$0x08,$main64		# jump to the 64 bit entry point
 main.0:
-	movl	$no_cpuid_msg,%eax
-	call	prputstr
-	call	prputn
-	jmp	main.2
+	movl	$no_cpuid_msg,%eax	# load a message telling the user that their CPU sucks a lot
+	call	prputstr		# print it
+	call	prputn			# print a new line
+	jmp	main.2			# jump to error handling
 main.1:
-	movl	$no_long_mode_msg,%eax
-	call	prputstr
-	call	prputn
-	jmp	main.2
+	movl	$no_long_mode_msg,%eax	# load a message telling the user that their CPU sucks a little
+	call	prputstr		# print it
+	call	prputn			# print a new line
+	jmp	main.2			# jump to error handling
 main.2:
 	# TODO: Either load a 32 bit version of the kernel or Michael Bay-splode
 	# because we don't support 32 bit CPUs
@@ -190,26 +190,26 @@ main.2:
 
 # utils
 disable_paging:
-	pushl	%eax
-	movl	%cr0,%eax
-	andl	$0x7FFFFFFF,%eax
-	movl	%eax,%cr0
-	movl	$pgng_off_msg,%eax
-	call	prputstr
-	call	prputn
-	popl	%eax
-	ret
+	pushl	%eax			# save the value in %eax to the stack
+	movl	%cr0,%eax		# load the control register
+	andl	$0x7FFFFFFF,%eax	# clear the paging bit
+	movl	%eax,%cr0		# write the control register back
+	movl	$pgng_off_msg,%eax	# notify the user that paging is off
+	call	prputstr		# print that message
+	call	prputn			# print a new line
+	popl	%eax			# restore %eax from the stack
+	ret				# exit
 
 enable_paging:
-	pushl	%eax
-	movl	%cr0,%eax
-	orl	$0x80000000,%eax
-	movl	%eax,%cr0
-	movl	$pgng_on_msg,%eax
-	call	prputstr
-	call	prputn
-	popl	%eax
-	ret
+	pushl	%eax			# save the value in %eax to the stack
+	movl	%cr0,%eax		# load the control register
+	orl	$0x80000000,%eax	# set the paging bit
+	movl	%eax,%cr0		# write the control register back
+	movl	$pgng_on_msg,%eax	# notify the user that paging is on
+	call	prputstr		# print that message
+	call	prputn			# print a new line
+	popl	%eax			# restore the value of %eax from the stack
+	ret				# exit
 
 enable_pae:
 	pushl	%eax

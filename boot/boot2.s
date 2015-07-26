@@ -212,11 +212,11 @@ enable_paging:
 	ret				# exit
 
 enable_pae:
-	pushl	%eax
-	movl	%cr4,%eax
-	orl	$0x10,%eax
-	movl	%eax,%cr4
-	popl	%eax
+	pushl	%eax			# save value of register onto stack
+	movl	%cr4,%eax		# load the control register
+	orl	$0x20,%eax		# set PAE bit
+	movl	%eax,%cr4		# write the control register
+	popl	%eax			# restore value of register from stack
 	ret
 
 enable_lm:

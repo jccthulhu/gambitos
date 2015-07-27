@@ -5,13 +5,11 @@
 	.set GDT_SIZE,0x20	# size of the 32 bit Global Descriptor Table (GDT)
 	.set TSS_SPC,0x8020	# memory location of the Task State Segment (TSS), which we only use in 32 bit (real) mode
 	.set TSS_SZ,0x65	# size of the TSS
-	.set IDT_SPC,0x8085	# memory location of the Interrupt Descriptor Table (IDT)
 	.set IDT_SZ,0x190	# size of the IDT
 
 	.set CODE_SEL,0x8	# the index for the code segment in the GDT
 	.set DATA_SEL,0x10	# the index for the data segment in the GDT
 	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
-
 	.set VIDEO_BASE,0xb8000	# the memory location for the origin of video memory, used for printing to the screen
 				# this is the start of a 25 by 80 character block of memory, which is written to the screen 60 times each second
 
@@ -607,9 +605,30 @@ long_mode_full_msg:
 ###
 # the main entry point for 64 bit mode
 main64:
+	cli			# no interrupts, please
+	# set segment registers
+	#mov	$0x10,%ax
+	#movw	%ax,%ds
+	#movw	%ax,%es
+	#movw	%ax,%fs
+	#movw	%ax,%gs
+
+	mov	$STACK_TOP,%rsp			# reset the stack
+
 	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
 	call	prputstr64			# call the prputstr64 subroutine to print the success message
-	jmp	.				# that's it. our os is done. that was fun. goodbye. oh, you're still here... umm... let's loop that again.
+
+	movw	$0x2820,%bx			# remap PIC interrupts
+	call	setpic
+	movb	$0xfd,%al			# set PIC enable masks
+	movb	$0xff,%ah			# only enable keyboard interrupts for now
+	call	enablepic
+	mov	$idtspc,%rdi
+	#call	build_idt			# build the IDT
+	#lidt	idtdesc64			# install the IDT
+	#sti					# enable interrupts
+	# trigger an interrupt to make sure we did it right
+	jmp	.
 
 
 
@@ -646,8 +665,158 @@ prputstr64.1:
 	popq	%rax
 	ret			# return from the subroutine
 
+# interrupt stuff
 
+idtdesc64:
+	.word	IDT_SZ-1
+	.quad	idtspc
 
+# enable certain PIC interrupts
+# params:
+#	al	PIC1 mask
+#	ah	PIC2 mask
+enablepic:
+	pushq	%rax		# save register values to the stack
+	outb	%al,$0x21	# write out the PIC1 mask
+	movb	%ah,%al		# shuffle the masks
+	outb	%al,$0xa1	# write out the PIC2 mask
+	popq	%rax		# restore register values from the stack
+	ret			# exit the subroutine
+
+# remap PIC interrupts
+# params:
+#	bl	starting interrupt number for PIC1
+#	bh	starting interrupt number for PIC2
+setpic: 	
+	pushq	%rax
+	inb $0x21,%al			# Save master
+	push %rax			#  IMR
+	inb $0xa1,%al			# Save slave
+	push %rax			#  IMR
+	movb $0x11,%al			# ICW1 to
+	outb %al,$0x20			#  master,
+	outb %al,$0xa0			#  slave
+	movb %bl,%al			# ICW2 to
+	outb %al,$0x21			#  master
+	movb %bh,%al			# ICW2 to
+	outb %al,$0xa1			#  slave
+	movb $0x4,%al			# ICW3 to
+	outb %al,$0x21			#  master
+	movb $0x2,%al			# ICW3 to
+	outb %al,$0xa1			#  slave
+	movb $0x1,%al			# ICW4 to
+	outb %al,$0x21			#  master,
+	outb %al,$0xa1			#  slave
+	pop  %rax				# Restore slave
+	outb %al,$0xa1			#  IMR
+	pop  %rax				# Restore master
+	outb %al,$0x21			#  IMR
+	popq	%rax
+	ret				# To caller
+
+# constructs a reasonable 'default' Interrupt Descriptor Table (IDT) in long mode
+# params:
+#	rdi	IDT pointer
+build_idt:
+	# save register values onto the stack
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rdi
+	pushq	%rsi
+	mov	%rdi,%rsi	# shift the IDT pointer because the next function expects
+				#	it in rsi (and preserves it thusly)
+	# the first 0x13 interrupts are hardware exceptions ('faults');
+	#	exceptions should be handled by a default exception handler that pretty much
+	#	handles them all the same way
+	# this is a loop to install the exception handler for the first 0x13 interrupts
+	xor	%rdx,%rdx	# use rdx as the loop counter/interrupt number
+	mov	$0x14,%rax	# use rax to do loop counter check
+build_idt.0:
+	mov	$default_isr,%rdi	# load up the function pointer
+	# IDT pointer is already in place
+	# the interrupt number is already in place
+	movb	$0x8e,%cl	# set the type:attributes
+				# specifically, set it as present, kernel priv,
+				#	32 bit interrupt gate
+	call	install_isr	# call the subroutine to install the exception handlee
+	inc	%rdx		# increment the loop counter
+	cmpq	%rdx,%rax	# check it against 0x14
+	jne	build_idt.0	# if the loop counter is 0x14, then we can stop looping
+				# otherwise, jump to the start of the loop and continue
+	# interrupts 20-30 are user interrupts; these should all be handled pretty much the same
+	# this is a loop to install the user interrupt handler for interrupts 0x20-0x30
+	xor	%rdx,%rdx	# use rdx as the loop counter/interrupt number
+	mov	$0x31,%rax	# use rax to do loop counter check
+build_idt.1:
+	mov	$default_isr,%rdi	# load up the function pointer
+	# IDT pointer is already in place
+	# the interrupt number is already in place
+	movb	$0x8e,%cl	# set the type:attributes
+				# specifically, set it as present, kernel priv,
+				#	32 bit interrupt gate
+	call	install_isr	# call the subroutine to install the handler
+	inc	%rdx		# increment the loop counter
+	cmpq	%rdx,%rax	# check it against 0x31
+	jne	build_idt.1	# if the loop counter is 31, then we can stop looping
+				# otherwise, jump to the start of the loop and continue
+	# restore register values from the stack
+	popq	%rsi
+	popq	%rdi
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
+	ret			# exit this function
+
+# install specified ISR for specified interrupt into specified IDT
+# params:
+#	rdi	ISR function pointer
+#	rsi	IDT pointer
+#	rdx	interrupt number
+#	cl	type:attributes byte
+install_isr:
+	# save register values onto the stack
+	pushq	%rdx
+	pushq	%rdi
+	pushq	%rsi
+	shl	$0x1,%rdx		# get the offset into the IDT
+	leaq	(%rsi,%rdx,0x8),%rsi	# offset = (interrupt number * 2) * 0x8 + IDT
+	movw	%di,(%rsi)		# write the low word of the function pointer
+	movw	$CODE_SEL,0x2(%rsi)	# write the code segment selector
+	movb	$0x0,0x4(%rsi)		# write zero (1 byte)
+	movb	%cl,0x5(%rsi)		# write the type:attributes byte
+	shr	$0x10,%rdi		# write the next word
+	movw	%di,0x6(%rsi)		#	of the function pointer
+	shr	$0x10,%rdi		# write the upper doubleword
+	movl	%edi,0x8(%rsi)		#	of the function pointer
+	movl	$0x0,0xc(%rsi)		# write zero (4 bytes)
+	# restore register values from the stack
+	popq	%rsi
+	popq	%rdi
+	popq	%rdx
+	ret
+
+# default ISR, for testing purposes
+default_isr:
+	# save all the general purpose register values to the stack
+	# note: pusha is apparently not supported in long mode
+	pushq	%rax
+	pushq	%rbx
+	pushq	%rcx
+	pushq	%rdx
+	mov	$0x41,%rax	# load 'A'
+	call	prputchr	# print 'A' to the screen to indicate that we got an interrupt
+	# restore all the general purpose register values from the stack
+	popq	%rdx
+	popq	%rcx
+	popq	%rbx
+	popq	%rax
+	iretq			# return in an extra special, interrupt-y kinda way
+
+# make space for the IDT
+idtspc:
+.fill	IDT_SZ,0x1,0x0
+	
 ###
 # the 64 bit global descriptor table
 gdt64:

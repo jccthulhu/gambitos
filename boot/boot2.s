@@ -605,17 +605,17 @@ long_mode_full_msg:
 main64:
 	cli			# no interrupts, please
 	# set segment registers
-	#mov	$0x10,%ax
-	#movw	%ax,%ds
-	#movw	%ax,%es
-	#movw	%ax,%fs
-	#movw	%ax,%gs
+	mov	$0x10,%ax
 
-	mov	$STACK_TOP,%rsp			# reset the stack
+	movw	%ax,%ss
+	movw	%ax,%ds
+	movw	%ax,%es
+	movw	%ax,%fs
+	movw	%ax,%gs
 	
+	mov	$STACK_TOP,%rsp			# reset the stack
 	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
 	call	prputstr64			# call the prputstr64 subroutine to print the success message
-
 
 	movw	$0x2820,%bx			# remap PIC interrupts
 	call	setpic
@@ -623,10 +623,10 @@ main64:
 	movb	$0xff,%ah			# only enable keyboard interrupts for now
 	call	enablepic
 	mov	$idtspc,%rdi
-	#call	build_idt			# build the IDT
-	#lidt	idtdesc64			# install the IDT
+	call	build_idt			# build the IDT
+	lidt	idtdesc64			# install the IDT
 	#sti					# enable interrupts
-	# trigger an interrupt to make sure we did it right
+	#int	$0x30				# trigger an interrupt to make sure we did it right
 	jmp	.
 
 
@@ -702,7 +702,6 @@ prputchr64.1:
 	pop	%rsi
 	pop	%rdi
 	ret	# exit
-
 # interrupt stuff
 
 # enable certain PIC interrupts
@@ -813,8 +812,8 @@ install_isr:
 	pushq	%rdx
 	pushq	%rdi
 	pushq	%rsi
-	shl	$0x1,%rdx		# get the offset into the IDT
-	leaq	(%rsi,%rdx,0x8),%rsi	# offset = (interrupt number * 2) * 0x8 + IDT
+	shl	$0x4,%rdx		# get the offset into the IDT
+	add	%rdx,%rsi		# offset = interrupt number * 0x10 + IDT
 	movw	%di,(%rsi)		# write the low word of the function pointer
 	movw	$CODE_SEL,0x2(%rsi)	# write the code segment selector
 	movb	$0x0,0x4(%rsi)		# write zero (1 byte)
@@ -856,7 +855,6 @@ current_video_mem64:
 
 ###
 # the 64 bit global descriptor table
-
 gdt64:
 	# null entry
 	.word	0x0

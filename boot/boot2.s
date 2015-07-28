@@ -607,14 +607,16 @@ long_mode_full_msg:
 main64:
 	cli			# no interrupts, please
 	# set segment registers
-	#mov	$0x10,%ax
-	#movw	%ax,%ds
-	#movw	%ax,%es
-	#movw	%ax,%fs
-	#movw	%ax,%gs
+	mov	$0x10,%ax
 
+	movw	%ax,%ss
+	movw	%ax,%ds
+	movw	%ax,%es
+	movw	%ax,%fs
+	movw	%ax,%gs
+	
 	mov	$STACK_TOP,%rsp			# reset the stack
-
+	
 	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
 	call	prputstr64			# call the prputstr64 subroutine to print the success message
 
@@ -624,10 +626,10 @@ main64:
 	movb	$0xff,%ah			# only enable keyboard interrupts for now
 	call	enablepic
 	mov	$idtspc,%rdi
-	#call	build_idt			# build the IDT
-	#lidt	idtdesc64			# install the IDT
+	call	build_idt			# build the IDT
+	lidt	idtdesc64			# install the IDT
 	#sti					# enable interrupts
-	# trigger an interrupt to make sure we did it right
+	#int	$0x30				# trigger an interrupt to make sure we did it right
 	jmp	.
 
 
@@ -659,17 +661,53 @@ prputstr64.0:
 	inc	%rdi		# increment the pointer to point to the next character in the string
 	jmp	prputstr64.0	# jump to the start of the loop to continue printing characters
 
+
 prputstr64.1:
 	# restore register values from the stack
 	popq	%rdi
 	popq	%rax
 	ret			# return from the subroutine
 
+# print a character in long mode
+# params:
+#	al	The character to print
+prputchr64:
+	# save register values to the stack
+	push	%rdi
+	push	%rsi
+	push	%rax
+	# put the character into video memory
+	mov	$current_video_mem64,%rdi
+	mov	(%rdi),%rsi
+	movb	%al,(%rsi)
+	movb	$0x7,0x1(%rsi)
+	# increment the video memory pointer
+	add	$0x2,%rsi
+	mov	%rsi,(%rdi)
+	# increment x
+	xor	%rax,%rax
+	movb	0x8(%rdi),%al
+	inc	%rax
+	movq	$0x50,%rsi
+	cmp	%rax,%rsi
+	jne	prputchr64.0
+	xor	%rax,%rax
+	movb	%al,0x8(%rdi)
+	movb	0x9(%rdi),%al
+	inc	%rax
+	movb	%al,0x9(%rdi)
+	jmp	prputchr64.1
+prputchr64.0:
+	movb	%al,0x8(%rdi)
+prputchr64.1:
+	# restore register values from the stack
+	pop	%rax
+	pop	%rsi
+	pop	%rdi
+	ret	# exit
+
 # interrupt stuff
 
-idtdesc64:
-	.word	IDT_SZ-1
-	.quad	idtspc
 
 # enable certain PIC interrupts
 # params:
@@ -746,7 +784,7 @@ build_idt.0:
 				# otherwise, jump to the start of the loop and continue
 	# interrupts 20-30 are user interrupts; these should all be handled pretty much the same
 	# this is a loop to install the user interrupt handler for interrupts 0x20-0x30
-	xor	%rdx,%rdx	# use rdx as the loop counter/interrupt number
+	mov	$0x20,%rdx	# use rdx as the loop counter/interrupt number
 	mov	$0x31,%rax	# use rax to do loop counter check
 build_idt.1:
 	mov	$default_isr,%rdi	# load up the function pointer
@@ -779,8 +817,8 @@ install_isr:
 	pushq	%rdx
 	pushq	%rdi
 	pushq	%rsi
-	shl	$0x1,%rdx		# get the offset into the IDT
-	leaq	(%rsi,%rdx,0x8),%rsi	# offset = (interrupt number * 2) * 0x8 + IDT
+	shl	$0x4,%rdx		# get the offset into the IDT
+	add	%rdx,%rsi		# offset = interrupt number * 0x10 + IDT
 	movw	%di,(%rsi)		# write the low word of the function pointer
 	movw	$CODE_SEL,0x2(%rsi)	# write the code segment selector
 	movb	$0x0,0x4(%rsi)		# write zero (1 byte)
@@ -805,7 +843,7 @@ default_isr:
 	pushq	%rcx
 	pushq	%rdx
 	mov	$0x41,%rax	# load 'A'
-	call	prputchr	# print 'A' to the screen to indicate that we got an interrupt
+	call	prputchr64	# print 'A' to the screen to indicate that we got an interrupt
 	# restore all the general purpose register values from the stack
 	popq	%rdx
 	popq	%rcx
@@ -813,12 +851,16 @@ default_isr:
 	popq	%rax
 	iretq			# return in an extra special, interrupt-y kinda way
 
-# make space for the IDT
-idtspc:
-.fill	IDT_SZ,0x1,0x0
-	
+	.align	0x8
+
+current_video_mem64:
+	.quad	VIDEO_BASE
+	.byte	0x0	# x
+	.byte	0x0	# y
+
 ###
 # the 64 bit global descriptor table
+
 gdt64:
 	# null entry
 	.word	0x0
@@ -847,4 +889,14 @@ gdt64:
 gdt64desc:
 	.word	GDT64_SZ-1
 	.quad	gdt64
+
+idtdesc64:
+	.word	IDT_SZ-1
+	.quad	idtspc
+
+
+# make space for the IDT
+idtspc:
+.fill	IDT_SZ,0x1,0x0
+	
 

@@ -421,6 +421,7 @@ loadprt.0:
 		                 # al <- LBA / sectors per track
 		                 # ah <- LBA % sectors per track
 	movb	%ah,%bl          # move %ah, the result of LBA % sectors per track, into %bl, which is now the sector to be loaded
+	inc	%bl
 		                 # bl <- sector to be read
 	movb	$0x0,%ah         # set %ah to zero so that %ax is now the result of LBA / sectors per track
 		                 # ax <- LBA / sectors per track

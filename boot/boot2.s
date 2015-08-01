@@ -1,86 +1,123 @@
 	.globl	start
 	.code16
 
-	.set STACK_TOP,0x7c00	# stack origin
-	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
-	.set TSS_SPC,0x8020	# location of the Task State Segment (TSS)
+	.set STACK_TOP,0x7c00	# memory location of the stack's origin
+	.set GDT_SIZE,0x20	# size of the 32 bit Global Descriptor Table (GDT)
+	.set TSS_SPC,0x8020	# memory location of the Task State Segment (TSS), which we only use in 32 bit (real) mode
 	.set TSS_SZ,0x65	# size of the TSS
-	.set IDT_SPC,0x8085	# location of the Interrupt Descriptor Table (IDT)
+	.set IDT_SPC,0x8085	# memory location of the Interrupt Descriptor Table (IDT)
 	.set IDT_SZ,0x190	# size of the IDT
 
-	.set DATA_SEL,0x10	# Data segment index in the GDT
-	.set TSS_SEL,0x18	# TSS segment index in the (32 bit) GDT
+	.set CODE_SEL,0x8	# the index for the code segment in the GDT
+	.set DATA_SEL,0x10	# the index for the data segment in the GDT
+	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
 
-	.set VIDEO_BASE,0xb8000	# the start of video memory (for printing to screen)
+	.set VIDEO_BASE,0xb8000	# the memory location for the origin of video memory, used for printing to the screen
+				# this is the start of a 25 by 80 character block of memory, which is written to the screen 60 times each second
 
-	.set PML4T,0x10000	# the 4th level of the paging hierarchy
-	.set PDPT,0x11000	# the 3rd level of the paging hierarchy
-	.set PDT,0x12000	# the 2nd level of the paging hierarchy
-	.set PT,0x13000		# the page table (1st level)
+	# the memory locations of the page tables used for virtualization in protected long (64 bit) mode
+	# we can't jump into long mode without these locations
+	# we set these up with the bare minimum work so that we can start writing C code to set them up properly
+	# the many levels of addressing to get into a page table is used so that 512^4 pages of memory can be accessed
+	# this many levels of granularity makes it easy to isolate specific segemnts in memory
+	# having 4 levels of addressing is required for entering into long mode
+	# each of these tables takes up 0x1000 bytes in memory, and each entry within each table is 8 bytes long, which is a pointer in long mode
+	.set PML4T,0x10000	# this is the address to the 'page map level 4' (PML4) table, which points to the 512 PDP tables
+	.set PDPT,0x11000	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
+	.set PDT,0x12000	# this is the address to the page directory (PD) table, which points to the 512 page tables
+	.set PT,0x13000		# this is the address to the first page table, which points to 512 pages in memory
 
-	.set GDT64_SZ,0x18	# the size of the 64 bit GDT
+	.set GDT64_SZ,0x18	# the size of the 64 bit GDT, witch describes segments in memory
+				# it is strange that this is necessary since segments are obsolete in long mode
 
 start:
 	# interrupts are for chumps
-	cli			# disable interrupts
-	cld			# cause string operations to increment
+	cli			# disable interrupts to prevent trippple faults, which forces a hard reset
+	cld			# cause string operations to increment the used pointers
+
 	# clear segment selectors
-	xorw	%ax,%ax
-	movw	%ax,%es
-	movw	%ax,%ds
-	movw	%ax,%ss
-	movw	$STACK_TOP,%sp	# set up the stack
-	# enable more memory than anyone would ever need
-	callw	seta20		# by setting the A20 line, we enable >1MB of memory
-	lgdt	gdtdesc		# set the GDT
-	# TODO: interrupt handlers
-	# set protected mode
-	mov	%cr0,%eax	# load control register zero
-	orb	$0x1,%al	# set the PM bit
-	mov	%eax,%cr0	# write the control register
-	# set up the TSS
-	movw	$TSS_SPC,%di
-	callw	createtss
-	ljmp	$0x8,$main	# jump to the 32 bit entry point
+	xorw	%ax,%ax		# set %ax to 0 using XOR
+	movw	%ax,%es		# write %ax (0) to %es, the extra segment regsiter
+	movw	%ax,%ds		# write %ax (0) to %ds, the data segment register
+	movw	%ax,%ss		# write %ax (0) to %ss, the stack segment register
+	movw	$STACK_TOP,%sp	# set %sp, the stack pointer register, to the stack origin
 
-# sets the A20 line to enable >1MB of memory
-# accepts no parameters, returns no values
+	# enable more than 1MB of memory, more than anyone would ever need
+	callw	seta20		# call the 'seta20' subroutine to the A20 line, which will stop the automatic wrapping of memory addresses past 1MB
+	
+	lgdt	gdtdesc		# load GDT by passing in the address of the GDT descriptor
+				# GNU requires that this instruction take a label instead of a regsiter value
+
+	# get us into protected mode so that we can then jump into 32 bit mode
+	# protected mode is necessary for virtual memory
+	mov	%cr0,%eax	# set %eax to %cr0, the 0th control register
+				# %cr9 is a bit field that holds information for protected mode, paging enabled, floating point emulation, and more
+	orb	$0x1,%al	# set the protected mode bit in the copied bit field to 1
+	mov	%eax,%cr0	# write the modified bit field to %cr0, the 0th control register
+
+	# set up the Task State Segment (TSS)
+	movw	$TSS_SPC,%di	# set %di to the TSS pointer
+	callw	createtss	# call the 'createtss' subroutine to setup the TSS
+	ljmp	$CODE_SEL,$main	# jump to the 32 bit mode entry point (main) and set the code segment register to the value in the proper GDT index
+
+
+
+###
+# sets the A20 line, the 21st bit of memory addresses, to enable more than 1MB of memory
+# params: none
+# returns: none
+# note: the A20 line is effectively, in the past, off the CPU within the keyboard, so we have to communicate as though it's off the chip
 seta20:
-	pushw	%ax
+	pushw	%ax		# save %ax to the stack
 seta20.1:
-	inb	$0x64,%al	# get status
-	testb	$0x2,%al	# busy?
-	jnz	seta20.1	# yes
-	movb	$0xd1,%al	# commands: write
-	outb	%al,$0x64	#	output port
-seta20.2:
-	inb	$0x64,%al	# get status
-	testb	$0x2,%al	# busy?
-	jnz	seta20.2	# yes
-	movb	$0xdf,%al	# enable
-	outb	%al,$0x60	# 	A20
-	popw	%ax
-	retw
+	inb	$0x64,%al	# read the keyboard control chip's status register to see if it's busy
+	testb	$0x2,%al	# is the keyboard control chip busy?
+	jnz	seta20.1	# if the keyboard control chip is busy, loop and try again (busy wait)
 
+	# if the keyboard control chip is ready for commands
+	movb	$0xd1,%al	# set %al to the value of the chip's write command, which is 0xd1
+	outb	%al,$0x64	# send the command within %al to the keyboard control chip
+seta20.2:
+	inb	$0x64,%al	# read the keyboard control chip's status register to see if it's busy
+	testb	$0x2,%al	# is the keyboard control chip busy?
+	jnz	seta20.2	# if the keyboard control chip is busy, loop and try again (busy wait)
+
+	# if the keyboard control chip is ready for commands
+	movb	$0xdf,%al	# set %al to the value of the chip's enable command, which is 0xdf
+	outb	%al,$0x60	# write out the command within %al to the keyboard control chip to finally enable the A20 line
+
+	popw	%ax		# reset %ax to its value from the stack
+	retw			# return from the subroutine
+
+
+
+###
 # print a character to the screen
+# note: this is for use in real mode, and will cause a triple fault in protected mode
 # params:
 #	al	the character (ASCII value)
 putchr:
 	# save register values to the stack
 	pushw	%bx
 	pushw	%ax
-	movw	$0x7,%bx	# white characters on black background
-	movb	$0xe,%ah	# bios call E
+
+	movw	$0x7,%bx	# print white characters on black background
+	movb	$0xe,%ah	# when we're stil in real mode, set %al to 0xe, which is the bios call to print to the screen
 	int	$0x10		# trigger the interrupt
 	# TODO: error handling
+
 	# restore register values from the stack
 	popw	%ax
 	popw	%bx
-	retw
+	retw			# return from the subroutine
 
+
+
+###
 # this is the global descriptor table, which describes memory segments;
 # we currently use the bare minimum table because this table is quickly
 # abandoned in our jump to 64 bit
+# note: two words is four bytes
 gdt:
 	# null entry
 	.word	0x0	# zero limit
@@ -116,114 +153,173 @@ gdtdesc:
 	.word	gdt		# endianness swap
 	.word	0x0
 
+
+
+###
 # create the TSS in memory
 # params:
 #	di	a pointer to the TSS
 createtss:
-	movw	$0x10,0x8(%di)		# write the stack segment
-	movw	$STACK_TOP,0x4(%di)	# write the kernel stack base
-	movw	$TSS_SZ,0x66(%di)	# write the io bitmap
+	movw	$DATA_SEL,0x8(%di)	# write data segment index into the stack segment slot of the TSS
+	movw	$STACK_TOP,0x4(%di)	# write the stack origin pointer into the kernel stack slot of the TSS
+	movw	$TSS_SZ,0x66(%di)	# write the size of the TSS into the io bitmap pointer slot of the TSS
+					# we do this because we don't use the io bitmap, so any data pointer will do
 	retw
 
-	.code32
+
+
+
+	.code32		# start the 32 bit protected mode code
 
 # 32 bit main
 main:
 	# set up the 32 bit stack
 	xor	%ecx,%ecx
-	movb	$DATA_SEL,%cl
-	movw	%cx,%ss
+
+	movb	$DATA_SEL,%cl		# set %cl to the data segment index
+	movw	%cx,%ss			# set %ss, the stack segment, to %cx, the data segment index
+
 	# set up the TSS
-	movw	$TSS_SEL,%ax
-	ltr	%ax
+	movw	$TSS_SEL,%ax		# set %ax to the TSS index
+	ltr	%ax			# this is the 'load TSS register' command, which loads the TSS from %ax
+
 	# DEBUG
 	call	prclrscrn		# call the subroutine that clears the screen
 	movl	$port_msg,%eax		# load the 32 bit protected mode welcome message
 	call	prputstr		# print the message to the screen
 	call	prputn			# print a new line
-	# try to jump to 64 bit mode
+	# END DEBUG
+
+	# now we will try to jump into 64 bit mode
+
 	# check for CPUID extended
-	movl	$0x80000000,%eax	# CPUID parameter; asks for the highest value supported
-	cpuid				# get CPU information
-	movl	$0x80000001,%ebx	# see if the CPUID operation can take this value
-	cmpl	%eax,%ebx
-	jg	main.0			# if the CPUID operation does not support extended features
-					# jump to an error state
+	movl	$0x80000000,%eax	# CPUID parameter; asks for the highest value of that parameter supported
+	cpuid				# get CPU information specified in %eax
+	movl	$0x80000001,%ebx	# see if the CPUID operation can take the extended bit value
+	cmpl	%eax,%ebx		# compare %eax, the result of CPUID, to %ebx, the minimum supported value we need
+	jg	main.0			# if the CPUID operation does not support extended features, jump to an error state
+
 	# check for 64 bit support
 	movl	$0x80000001,%eax	# CPUID parameter; asks for list of supported features
-	cpuid				# get CPU information
-	andl	$0x20000000,%edx	# mask out the long mode bit
-	testl	%edx,%edx		# check that the long mode bit is set;
-	je	main.1			# if the long mode bit is clear (zero), jump to error state
-	# actually start going to 64 bit mode
+	cpuid				# get CPU information specified in %eax
+	andl	$0x20000000,%edx	# mask out the long mode bit from the result of the CPUID operation
+	testl	%edx,%edx		# is the long mode bit set in the result from the CPUID operation?
+	je	main.1			# if the long mode bit is clear (zero), jump to the error state
+
+	# if the CPUID extended bit is set, adn there is 64 bit support, we start going into 64 bit mode
+
+	# DEBUG
 	movl	$do_long_mode_msg,%eax	# load a message notifying the user of our intent to boot into
 					# long mode
 	call	prputstr		# print the message
 	call	prputn			# print a new line
-	call	disable_paging		# disable paging so that we can construct the page table
+	# END DEBUG
+
+	call	disable_paging		# call the disable paging subroutine so that we can construct the page table
 	call	create_page_tables	# call the subroutine to create the page tables
-	call	enable_pae		# enable physical address extension
-	call	enable_lm		# enable long mode
-	call	enable_paging		# enable paging
-	# debugging
+	call	enable_pae		# call the subroutine to enable physical address extension, which is needed for 4-level paging
+	call	enable_lm		# call the subroutine to finally enable long mode
+	call	enable_paging		# call the subroutine to enable paging
+
+	# DEBUG
 	movl	$long_mode_comp_msg,%eax	# load a message telling the user that we are now in 
 					# IA-32e long mode compatibility mode
 	call	prputstr		# print the message
 	call	prputn			# print a new line
+	# END DEBUG
+
 	lgdt	gdt64desc		# load the long mode descriptor table;
 					# see, I told you we were just gonna ditch that other one
-	ljmp	$0x08,$main64		# jump to the 64 bit entry point
+	ljmp	$0x08,$main64		# jump to the 64 bit entry point and set the code segment register to the value in the proper GDT index
+
+# print an error message that the CPU doesn't support extended features
 main.0:
 	movl	$no_cpuid_msg,%eax	# load a message telling the user that their CPU sucks a lot
 	call	prputstr		# print it
 	call	prputn			# print a new line
 	jmp	main.2			# jump to error handling
+
+# print an error message that the CPU doesn't support 64 bit mode
 main.1:
 	movl	$no_long_mode_msg,%eax	# load a message telling the user that their CPU sucks a little
 	call	prputstr		# print it
 	call	prputn			# print a new line
 	jmp	main.2			# jump to error handling
+
 main.2:
 	# TODO: Either load a 32 bit version of the kernel or Michael Bay-splode
 	# because we don't support 32 bit CPUs
-	jmp	.
+	jmp	.			# create a tight loop to halt the program
 
-# utils
 
-# disable paging; no parameters or return value
+
+
+###
+# utilities
+
+
+
+###
+# disable paging
+# params: none
+# returns: none
 disable_paging:
 	pushl	%eax			# save the value in %eax to the stack
-	movl	%cr0,%eax		# load the control register
-	andl	$0x7FFFFFFF,%eax	# clear the paging bit
-	movl	%eax,%cr0		# write the control register back
+	movl	%cr0,%eax		# load the 0th control register into %eax
+	andl	$0x7FFFFFFF,%eax	# clear the paging bit from %eax
+	movl	%eax,%cr0		# write %eax back into the 0th control register
+
+	# DEBUGGING
 	movl	$pgng_off_msg,%eax	# notify the user that paging is off
 	call	prputstr		# print that message
 	call	prputn			# print a new line
-	popl	%eax			# restore %eax from the stack
-	ret				# exit
+	# END DEBUGGING
 
-# enable paging; no parameters or return value
+	popl	%eax			# restore %eax from the stack
+	ret				# return from the subroutine
+
+
+
+###
+# enable paging
+# params: none
+# returns: none
 enable_paging:
 	pushl	%eax			# save the value in %eax to the stack
-	movl	%cr0,%eax		# load the control register
-	orl	$0x80000000,%eax	# set the paging bit
-	movl	%eax,%cr0		# write the control register back
+	movl	%cr0,%eax		# load the 0th control register into %eax
+	orl	$0x80000000,%eax	# set the paging bit in %eax
+	movl	%eax,%cr0		# write %eax back into the 0th control register
+
+	# DEBUGGING
 	movl	$pgng_on_msg,%eax	# notify the user that paging is on
 	call	prputstr		# print that message
 	call	prputn			# print a new line
+	# END DEBUGGING
+
 	popl	%eax			# restore the value of %eax from the stack
 	ret				# exit
 
-# enable physical address extension (PAE); no parameters or return value
+
+
+###
+# enable physical address extension (PAE)
+# params: none
+# returns: none
 enable_pae:
-	pushl	%eax			# save value of register onto stack
-	movl	%cr4,%eax		# load the control register
-	orl	$0x20,%eax		# set PAE bit
-	movl	%eax,%cr4		# write the control register
+	pushl	%eax			# save value of %eax onto stack
+	movl	%cr4,%eax		# load the 4th control register into %eax
+	orl	$0x20,%eax		# set PAE bit in %eax
+	movl	%eax,%cr4		# write %eax into the 4th control register
 	popl	%eax			# restore value of register from stack
 	ret
 
-# enable long mode; no parameters or return value
+
+
+###
+# enable long mode
+# params: none
+# returns: none
+# TODO: continue elaborating commends from here on
 enable_lm:
 	# save register values onto the stack
 	pushl	%ecx

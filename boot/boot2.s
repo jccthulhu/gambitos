@@ -3,7 +3,7 @@
 
 	.set STACK_TOP,0x7c00	# stack origin
 	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
-	.set TSS_SPC,0x8020	# location of the Task State Segment (TSS)
+	.set TSS_SPC,0x14000	# location of the Task State Segment (TSS)
 	.set TSS_SZ,0x65	# size of the TSS
 	#.set IDT_SPC,0x8085	# location of the Interrupt Descriptor Table (IDT)
 	.set IDT_SZ,0x300	# size of the IDT
@@ -431,14 +431,15 @@ long_mode_full_msg:
 main64:
 	cli			# no interrupts, please
 	# set segment registers
-	mov	$0x10,%ax
+	mov	$DATA_SEL,%ax
 
-	movw	%ax,%ss
+	#movw	%ax,%ss
 	movw	%ax,%ds
 	movw	%ax,%es
 	movw	%ax,%fs
 	movw	%ax,%gs
 	
+
 	mov	$STACK_TOP,%rsp			# reset the stack
 	mov	$long_mode_full_msg,%rax	# note to the user that we made it to
 						#	protected mode

@@ -4,6 +4,7 @@
 	.set STACK_TOP,0x7c00	# memory location of the stack's origin
 	.set GDT_SIZE,0x20	# size of the 32 bit Global Descriptor Table (GDT)
 	.set TSS_SPC,0x8020	# memory location of the Task State Segment (TSS), which we only use in 32 bit (real) mode
+
 	.set TSS_SZ,0x65	# size of the TSS
 	.set IDT_SZ,0x300	# size of the IDT
 	.set CODE_SEL,0x8	# the index for the code segment in the GDT
@@ -605,14 +606,15 @@ long_mode_full_msg:
 main64:
 	cli			# no interrupts, please
 	# set segment registers
-	mov	$0x10,%ax
+	mov	$DATA_SEL,%ax
 
-	movw	%ax,%ss
+	#movw	%ax,%ss
 	movw	%ax,%ds
 	movw	%ax,%es
 	movw	%ax,%fs
 	movw	%ax,%gs
 	
+
 	mov	$STACK_TOP,%rsp			# reset the stack
 	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
 	call	prputstr64			# call the prputstr64 subroutine to print the success message

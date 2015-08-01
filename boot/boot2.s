@@ -3,7 +3,7 @@
 
 	.set STACK_TOP,0x7c00	# stack origin
 	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
-	.set TSS_SPC,0x14000	# location of the Task State Segment (TSS)
+	.set TSS_SPC,tssspc	# location of the Task State Segment (TSS)
 	.set TSS_SZ,0x65	# size of the TSS
 	#.set IDT_SPC,0x8085	# location of the Interrupt Descriptor Table (IDT)
 	.set IDT_SZ,0x300	# size of the IDT
@@ -447,14 +447,14 @@ main64:
 
 	movw	$0x2820,%bx			# remap PIC interrupts
 	call	setpic
-	movb	$0xfd,%al			# set PIC enable masks
+	movb	$0xff,%al			# set PIC enable masks
 	movb	$0xff,%ah			# only enable keyboard interrupts for now
 	call	enablepic
 	mov	$idtspc,%rdi
 	call	build_idt			# build the IDT
 	lidt	idtdesc64			# install the IDT
 	#sti					# enable interrupts
-	#int	$0x30				# trigger an interrupt to make sure we did it right
+	int	$0x21				# trigger an interrupt to make sure we did it right
 	jmp	.
 
 # long mode printing stuff
@@ -664,6 +664,7 @@ default_isr:
 	popq	%rcx
 	popq	%rbx
 	popq	%rax
+	jmp	.
 	iretq			# return in an extra special, interrupt-y kinda way
 
 	.align	0x8
@@ -709,4 +710,5 @@ idtdesc64:
 idtspc:
 .fill	IDT_SZ,0x1,0x0
 	
-
+tssspc:
+.fill	TSS_SZ,0x1,0x0

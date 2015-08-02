@@ -5,7 +5,7 @@
 	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
 	.set TSS_SPC,tssspc	# location of the Task State Segment (TSS)
 	.set TSS_SZ,0x65	# size of the TSS
-	#.set IDT_SPC,0x8085	# location of the Interrupt Descriptor Table (IDT)
+	.set TSS64_SZ,0x65	# size of the long mode TSS
 	.set IDT_SZ,0x300	# size of the IDT
 
 	.set CODE_SEL,0x8	# Code segment index in the GDT
@@ -19,7 +19,7 @@
 	.set PDT,0x12000	# the 2nd level of the paging hierarchy
 	.set PT,0x13000		# the page table (1st level)
 
-	.set GDT64_SZ,0x18	# the size of the 64 bit GDT
+	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
 start:
 	# interrupts are for chumps
@@ -439,8 +439,15 @@ main64:
 	movw	%ax,%fs
 	movw	%ax,%gs
 	
-
 	mov	$STACK_TOP,%rsp			# reset the stack
+
+	# set up the long mode TSS
+	call	createtss64
+	mov	$TSS_SEL,%rax
+	ltr	%ax
+
+	call	prclrscrn64
+
 	mov	$long_mode_full_msg,%rax	# note to the user that we made it to
 						#	protected mode
 	call	prputstr64			# print that message
@@ -454,8 +461,36 @@ main64:
 	call	build_idt			# build the IDT
 	lidt	idtdesc64			# install the IDT
 	#sti					# enable interrupts
-	int	$0x21				# trigger an interrupt to make sure we did it right
+	#int	$0x21				# trigger an interrupt to make sure we did it right
+
+	# DEBUG
+	# fake a stack that iret should be able to use
+	mov	$DATA_SEL,%rax
+	pushq	%rax
+	mov	$STACK_TOP,%rax
+	pushq	%rax
+	mov	$0x46,%rax
+	pushq	%rax
+	mov	$CODE_SEL,%rax
+	pushq	%rax
+	mov	$main64.0,%rax
+	# call iret to generate a fault
+	iretq
+	# END DEBUG
+
+main64.0:
 	jmp	.
+
+###
+# build the long mode TSS
+# params:
+#	rdi	pointer to the TSS space
+createtss64:
+	# save register values onto the stack
+	movq	$STACK_TOP,0x4(%rdi)	# write the kernel stack base
+	movq	$TSS64_SZ,0x66(%rdi)	# write the IO map offset
+	# restore register values from the stack
+	ret
 
 # long mode printing stuff
 
@@ -520,6 +555,55 @@ prputchr64.1:
 	pop	%rsi
 	pop	%rdi
 	ret	# exit
+
+###
+# prints an integer to the screen
+# params:
+#	rdi	the integer to print
+prputint64:
+	# save register values onto the stack
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdi
+	mov	$0x10,%rcx	# loop once for each of 16 nibbles
+prputint64.0:
+	rol	$0x4,%rdi		# start with the highest nibble
+	# isolate the lower nibble
+	mov	%rdi,%rax
+	and	$0x0f,%rax
+	add	$0x30,%rax
+	cmp	$0x3A,%rax
+	jb	prputint64.1
+	add	$0x07,%rax
+prputint64.1:
+	call	prputchr64
+	loop	prputint64.0
+	# restore register values from the stack
+	popq	%rdi
+	popq	%rcx
+	popq	%rax
+	ret
+
+### clears the screen
+# params:
+#	none
+prclrscrn64:
+	# save register values to the stack
+	pushq	%rax
+	pushq	%rcx
+	mov	$0x2500,%rcx
+	mov	$VIDEO_BASE,%rax
+prclrscrn64.0:
+	movq	$0x0,0x0(%rax)
+	inc	%rax
+	loop	prclrscrn64.0
+	mov	$current_video_mem64,%rax
+	movq	$VIDEO_BASE,(%rax)
+	movw	$0x0,0x4(%rax)
+	# restore register values from the stack
+	popq	%rcx
+	popq	%rax
+	ret
 
 # interrupt stuff
 
@@ -586,7 +670,9 @@ build_idt:
 	xor	%rdx,%rdx	# use rdx as the loop counter/interrupt number
 	mov	$0x14,%rax	# use rax to do loop counter check
 build_idt.0:
-	mov	$default_isr,%rdi	# load up the function pointer
+	mov	$idtmap,%rdi	# load up the function pointer
+	leaq	(%rdi,%rdx,8),%rdi
+	mov	(%rdi),%rdi
 	# IDT pointer is already in place
 	# the interrupt number is already in place
 	movb	$0x8e,%cl	# set the type:attributes
@@ -649,6 +735,67 @@ install_isr:
 	popq	%rdx
 	ret
 
+isr_0:
+	pushq	$0x0
+	jmp	default_isr
+isr_1:
+	pushq	$0x1
+	jmp	default_isr
+isr_2:
+	pushq	$0x2
+	jmp	default_isr
+isr_3:
+	pushq	$0x3
+	jmp	default_isr
+isr_4:
+	pushq	$0x4
+	jmp	default_isr
+isr_5:
+	pushq	$0x5
+	jmp	default_isr
+isr_6:
+	pushq	$0x6
+	jmp	default_isr
+isr_7:
+	pushq	$0x7
+	jmp	default_isr
+isr_8:
+	pushq	$0x8
+	jmp	default_isr
+isr_9:
+	pushq	$0x9
+	jmp	default_isr
+isr_10:
+	pushq	$0xA
+	jmp	default_isr
+isr_11:
+	pushq	$0xB
+	jmp	default_isr
+isr_12:
+	pushq	$0xC
+	jmp	default_isr
+isr_13:
+	pushq	$0xD
+	jmp	default_isr
+isr_14:
+	pushq	$0xE
+	jmp	default_isr
+isr_15:
+	pushq	$0xF
+	jmp	default_isr
+isr_16:
+	pushq	$0x10
+	jmp	default_isr
+isr_17:
+	pushq	$0x11
+	jmp	default_isr
+isr_18:
+	pushq	$0x12
+	jmp	default_isr
+isr_19:
+	pushq	$0x13
+	jmp	default_isr
+
 # default ISR, for testing purposes
 default_isr:
 	# save all the general purpose register values to the stack
@@ -657,13 +804,24 @@ default_isr:
 	pushq	%rbx
 	pushq	%rcx
 	pushq	%rdx
-	mov	$0x41,%rax	# load 'A'
-	call	prputchr64	# print 'A' to the screen to indicate that we got an interrupt
+	#mov	$0x41,%rax	# load 'A'
+	#call	prputchr64	# print 'A' to the screen to indicate that we got an interrupt
 	# restore all the general purpose register values from the stack
 	popq	%rdx
 	popq	%rcx
 	popq	%rbx
 	popq	%rax
+
+	# DEBUG
+	mov	$0x7,%rcx
+default_isr.0:
+	pop	%rdi
+	call	prputint64
+	mov	$0x2c,%rax
+	call	prputchr64
+	loop	default_isr.0
+	# END DEBUG
+
 	jmp	.
 	iretq			# return in an extra special, interrupt-y kinda way
 
@@ -696,6 +854,15 @@ gdt64:
 	.byte	0x90
 	.byte	0x20
 	.byte	0x0
+	# TSS segment
+	.word	tssspc64+TSS64_SZ	# limit[0:15]
+	.word	tssspc64		# base[0:15]
+	.byte	0x0			# base[16:23]
+	.byte	0x89			# P:DPL:0:Type
+	.byte	0x0			# flags:limit[16:19]
+	.byte	0x0			# base[24:31]
+	.long	0x0			# base[32:63]
+	.long	0x0			# reserved
 
 gdt64desc:
 	.word	GDT64_SZ-1
@@ -712,3 +879,29 @@ idtspc:
 	
 tssspc:
 .fill	TSS_SZ,0x1,0x0
+
+tssspc64:
+.fill	TSS64_SZ,0x1,0x0
+
+idtmap:
+	.quad	isr_0
+	.quad	isr_1
+	.quad	isr_2
+	.quad	isr_3
+	.quad	isr_4
+	.quad	isr_5
+	.quad	isr_6
+	.quad	isr_7
+	.quad	isr_8
+	.quad	isr_9
+	.quad	isr_10
+	.quad	isr_11
+	.quad	isr_12
+	.quad	isr_13
+	.quad	isr_14
+	.quad	isr_15
+	.quad	isr_16
+	.quad	isr_17
+	.quad	isr_18
+	.quad	isr_19
+

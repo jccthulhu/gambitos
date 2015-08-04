@@ -83,8 +83,18 @@ start:
 
 start.0:
 	# TODO: Warning, no support for CPUID extended
+	mov	$no_cpuid_msg,%ax
+	call	putstr
+	jmp	start.2
 start.1:
 	# TODO: Warning, no support for long mode
+	mov	$no_long_mode_msg,%ax
+	call	putstr
+	jmp	start.2
+
+start.2:
+	# TODO: Either load a more shitty version of the kernel,
+	# or just explode
 	jmp	.
 
 
@@ -250,10 +260,6 @@ putchr:
 	popw	%ax
 	popw	%bx
 	retw
-
-	.code32
->>>>>>> Stripped out 32 bit main
-
 
 ###
 # strings to use while enabling 64 bit mode

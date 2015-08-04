@@ -594,17 +594,6 @@ long_mode_full_msg:
 	.ascii	"Welcome to full 64 bit mode!"
 	.byte	0x0
 
-# DEBUG
-debug_msg_1:
-	.ascii	"Exception!"
-	.byte	0x0
-
-debug_msg_2:
-	.ascii	"Not an exception!"
-	.byte	0x0
-# END DEBUG
-
-###
 # 64 bit target
 	.code64
 

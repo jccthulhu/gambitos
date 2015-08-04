@@ -15,10 +15,12 @@
 
 	.set VIDEO_BASE,0xb8000	# the start of video memory (for printing to screen)
 
+	.set PT_SZ,0x1000
 	.set PML4T,0x10000	# the 4th level of the paging hierarchy
-	.set PDPT,0x11000	# the 3rd level of the paging hierarchy
-	.set PDT,0x12000	# the 2nd level of the paging hierarchy
-	.set PT,0x13000		# the page table (1st level)
+	.set PDPT,PML4T+PT_SZ	# the 3rd level of the paging hierarchy
+	.set PDT,PDPT+PT_SZ	# the 2nd level of the paging hierarchy
+	.set PT,PDT+PT_SZ	# the page table (1st level)
+	.set VIDT,PT+PT_SZ	# virtual interrupt table
 
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
@@ -35,7 +37,6 @@ start:
 	# enable more memory than anyone would ever need
 	callw	seta20		# by setting the A20 line, we enable >1MB of memory
 	lgdt	gdtdesc		# set the GDT
-	# TODO: interrupt handlers
 	# set protected mode
 	mov	%cr0,%eax	# load control register zero
 	orb	$0x1,%al	# set the PM bit
@@ -74,7 +75,6 @@ putchr:
 	movw	$0x7,%bx	# white characters on black background
 	movb	$0xe,%ah	# bios call E
 	int	$0x10		# trigger the interrupt
-	# TODO: error handling
 	# restore register values from the stack
 	popw	%ax
 	popw	%bx
@@ -469,7 +469,7 @@ main64:
 	call	enablepic
 	mov	$idtspc,%rdi
 	call	build_idt			# build the IDT
-	mov	$vidt,%rdi
+	mov	$VIDT,%rdi
 	call	build_vidt			# build the VIDT
 	lidt	idtdesc64			# install the IDT
 	sti					# enable interrupts
@@ -977,7 +977,7 @@ isr_gate:
 	mov	0x38(%rsp),%rsi
 	# look up the handler
 	mov	%rdi,%rax
-	mov	$vidt,%rbx
+	mov	$VIDT,%rbx
 	movq	(%rbx,%rax,8),%rbx
 	# call it
 	call	*%rbx
@@ -1155,5 +1155,3 @@ idtmap:
 	.quad	isr_47
 	.quad	isr_48
 
-vidt:
-.fill	VIDT_SZ,0x8,0x0

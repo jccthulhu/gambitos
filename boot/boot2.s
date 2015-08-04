@@ -595,7 +595,15 @@ long_mode_full_msg:
 	.ascii	"Welcome to full 64 bit mode!"
 	.byte	0x0
 
+# DEBUG
+debug_msg_1:
+	.ascii	"Exception!"
+	.byte	0x0
 
+debug_msg_2:
+	.ascii	"Not an exception!"
+	.byte	0x0
+# END DEBUG
 
 ###
 # 64 bit target
@@ -615,11 +623,7 @@ main64:
 	movw	%ax,%gs
 	
 	mov	$STACK_TOP,%rsp			# reset the stack
-<<<<<<< HEAD
-	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
-	call	prputstr64			# call the prputstr64 subroutine to print the success message
-=======
-
+	
 	# set up the long mode TSS
 	call	createtss64
 	mov	$TSS_SEL,%rax
@@ -627,42 +631,22 @@ main64:
 
 	call	prclrscrn64
 
-	mov	$long_mode_full_msg,%rax	# note to the user that we made it to
-						#	protected mode
-	call	prputstr64			# print that message
->>>>>>> Lots of debugging stuff
+	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
+	call	prputstr64			# call the prputstr64 subroutine to print the success message
 
 	movw	$0x2820,%bx			# remap PIC interrupts
 	call	setpic
-	movb	$0xff,%al			# set PIC enable masks
+	movb	$0xfd,%al			# set PIC enable masks
 	movb	$0xff,%ah			# only enable keyboard interrupts for now
 	call	enablepic
 	mov	$idtspc,%rdi
 	call	build_idt			# build the IDT
 	lidt	idtdesc64			# install the IDT
-	#sti					# enable interrupts
-	#int	$0x21				# trigger an interrupt to make sure we did it right
-
-	# DEBUG
-	# fake a stack that iret should be able to use
-	mov	$DATA_SEL,%rax
-	pushq	%rax
-	mov	$STACK_TOP,%rax
-	pushq	%rax
-	mov	$0x46,%rax
-	pushq	%rax
-	mov	$CODE_SEL,%rax
-	pushq	%rax
-	mov	$main64.0,%rax
-	# call iret to generate a fault
-	iretq
-	# END DEBUG
+	sti					# enable interrupts
 
 main64.0:
 	jmp	.
 
-<<<<<<< HEAD
-=======
 ###
 # build the long mode TSS
 # params:
@@ -675,7 +659,6 @@ createtss64:
 	ret
 
 # long mode printing stuff
->>>>>>> Lots of debugging stuff
 
 
 ###
@@ -749,8 +732,6 @@ prputchr64.1:
 	pop	%rsi
 	pop	%rdi
 	ret	# exit
-<<<<<<< HEAD
-=======
 
 ###
 # prints an integer to the screen
@@ -801,7 +782,6 @@ prclrscrn64.0:
 	popq	%rax
 	ret
 
->>>>>>> Lots of debugging stuff
 # interrupt stuff
 
 # enable certain PIC interrupts
@@ -884,7 +864,10 @@ build_idt.0:
 	mov	$0x20,%rdx	# use rdx as the loop counter/interrupt number
 	mov	$0x31,%rax	# use rax to do loop counter check
 build_idt.1:
-	mov	$default_isr,%rdi	# load up the function pointer
+	# load up the function pointer
+	mov	$idtmap,%rdi
+	leaq	(%rdi,%rdx,8),%rdi
+	mov	(%rdi),%rdi
 	# IDT pointer is already in place
 	# the interrupt number is already in place
 	movb	$0x8e,%cl	# set the type:attributes
@@ -992,6 +975,151 @@ isr_19:
 	pushq	$0x13
 	jmp	default_isr
 
+isr_20:
+	pushq	$0x0
+	pushq	$0x14
+	jmp	default_isr
+
+isr_21:
+	pushq	$0x0
+	pushq	$0x15
+	jmp	default_isr
+
+isr_22:
+	pushq	$0x0
+	pushq	$0x16
+	jmp	default_isr
+
+isr_23:
+	pushq	$0x0
+	pushq	$0x17
+	jmp	default_isr
+
+isr_24:
+	pushq	$0x0
+	pushq	$0x18
+	jmp	default_isr
+
+isr_25:
+	pushq	$0x0
+	pushq	$0x19
+	jmp	default_isr
+
+isr_26:
+	pushq	$0x0
+	pushq	$0x1a
+	jmp	default_isr
+
+isr_27:
+	pushq	$0x0
+	pushq	$0x1b
+	jmp	default_isr
+
+isr_28:
+	pushq	$0x0
+	pushq	$0x1c
+	jmp	default_isr
+
+isr_29:
+	pushq	$0x0
+	pushq	$0x1d
+	jmp	default_isr
+
+isr_30:
+	pushq	$0x0
+	pushq	$0x1e
+	jmp	default_isr
+
+isr_31:
+	pushq	$0x0
+	pushq	$0x1f
+	jmp	default_isr
+
+isr_32:
+	pushq	$0x0
+	pushq	$0x20
+	jmp	default_isr
+
+isr_33:
+	pushq	$0x0
+	pushq	$0x21
+	jmp	default_isr
+
+isr_34:
+	pushq	$0x0
+	pushq	$0x22
+	jmp	default_isr
+
+isr_35:
+	pushq	$0x0
+	pushq	$0x23
+	jmp	default_isr
+
+isr_36:
+	pushq	$0x0
+	pushq	$0x24
+	jmp	default_isr
+
+isr_37:
+	pushq	$0x0
+	pushq	$0x25
+	jmp	default_isr
+
+isr_38:
+	pushq	$0x0
+	pushq	$0x26
+	jmp	default_isr
+
+isr_39:
+	pushq	$0x0
+	pushq	$0x27
+	jmp	default_isr
+
+isr_40:
+	pushq	$0x0
+	pushq	$0x28
+	jmp	default_isr
+
+isr_41:
+	pushq	$0x0
+	pushq	$0x29
+	jmp	default_isr
+
+isr_42:
+	pushq	$0x0
+	pushq	$0x2a
+	jmp	default_isr
+
+isr_43:
+	pushq	$0x0
+	pushq	$0x2b
+	jmp	default_isr
+
+isr_44:
+	pushq	$0x0
+	pushq	$0x2c
+	jmp	default_isr
+
+isr_45:
+	pushq	$0x0
+	pushq	$0x2d
+	jmp	default_isr
+
+isr_46:
+	pushq	$0x0
+	pushq	$0x2e
+	jmp	default_isr
+
+isr_47:
+	pushq	$0x0
+	pushq	$0x2f
+	jmp	default_isr
+
+isr_48:
+	pushq	$0x0
+	pushq	$0x30
+	jmp	default_isr
+
 # default ISR, for testing purposes
 default_isr:
 	# save all the general purpose register values to the stack
@@ -1000,25 +1128,21 @@ default_isr:
 	pushq	%rbx
 	pushq	%rcx
 	pushq	%rdx
-	#mov	$0x41,%rax	# load 'A'
-	#call	prputchr64	# print 'A' to the screen to indicate that we got an interrupt
+	pushq	%rdi
+	pushq	%rsi
+
+	mov	$0x41,%rax
+	call	prputchr64
+	
 	# restore all the general purpose register values from the stack
+	popq	%rsi
+	popq	%rdi
 	popq	%rdx
 	popq	%rcx
 	popq	%rbx
 	popq	%rax
-
-	# DEBUG
-	mov	$0x7,%rcx
-default_isr.0:
-	pop	%rdi
-	call	prputint64
-	mov	$0x2c,%rax
-	call	prputchr64
-	loop	default_isr.0
-	# END DEBUG
-
-	jmp	.
+	addq	$0x8,%rsp	# drop interrupt number
+	addq	$0x8,%rsp	# drop error code
 	iretq			# return in an extra special, interrupt-y kinda way
 
 	.align	0x8
@@ -1049,7 +1173,7 @@ gdt64:
 	.word	0x0
 	.word	0x0
 	.byte	0x0
-	.byte	0x90
+	.byte	0x92
 	.byte	0x20
 	.byte	0x0
 	# TSS segment
@@ -1104,4 +1228,33 @@ idtmap:
 	.quad	isr_17
 	.quad	isr_18
 	.quad	isr_19
+	.quad	isr_20
+	.quad	isr_21
+	.quad	isr_22
+	.quad	isr_23
+	.quad	isr_24
+	.quad	isr_25
+	.quad	isr_26
+	.quad	isr_27
+	.quad	isr_28
+	.quad	isr_29
+	.quad	isr_30
+	.quad	isr_31
+	.quad	isr_32
+	.quad	isr_33
+	.quad	isr_34
+	.quad	isr_35
+	.quad	isr_36
+	.quad	isr_37
+	.quad	isr_38
+	.quad	isr_39
+	.quad	isr_40
+	.quad	isr_41
+	.quad	isr_42
+	.quad	isr_43
+	.quad	isr_44
+	.quad	isr_45
+	.quad	isr_46
+	.quad	isr_47
+	.quad	isr_48
 

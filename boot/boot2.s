@@ -3,7 +3,6 @@
 
 	.set STACK_TOP,0x7c00	# stack origin
 	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
-	.set TSS_SPC,tssspc	# memory location of the Task State Segment (TSS), which we only use in 32 bit (real) mode
 	.set TSS_SZ,0x65	# size of the TSS
 	.set TSS64_SZ,0x65	# size of the long mode TSS
 	.set IDT_SZ,0x300	# size of the IDT
@@ -82,12 +81,12 @@ start:
 	ljmp	$CODE_SEL,$main64	# jump to the 32 bit entry point
 
 start.0:
-	# TODO: Warning, no support for CPUID extended
+	# Warning, no support for CPUID extended
 	mov	$no_cpuid_msg,%ax
 	call	putstr
 	jmp	start.2
 start.1:
-	# TODO: Warning, no support for long mode
+	# Warning, no support for long mode
 	mov	$no_long_mode_msg,%ax
 	call	putstr
 	jmp	start.2
@@ -956,9 +955,6 @@ idtdesc64:
 idtspc:
 .fill	IDT_SZ,0x1,0x0
 	
-tssspc:
-.fill	TSS_SZ,0x1,0x0
-
 tssspc64:
 .fill	TSS64_SZ,0x1,0x0
 

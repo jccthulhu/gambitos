@@ -264,12 +264,7 @@ putchr:
 ###
 # strings to use while enabling 64 bit mode
 
-# a string to be printed to the screen when 32 bit protected mode has been entered
-port_msg:
-	.ascii	"Welcome to 32 bit protected mode!"
-	.byte	0x0
-
-# an error string to be printed to the screen when the processor does not support CPUID
+# some data!
 no_cpuid_msg:
 	.ascii	"Your processor does not support CPUID extended"
 	.byte	0x0
@@ -279,27 +274,6 @@ no_long_mode_msg:
 	.ascii	"Your processor does not support 64 bit mode"
 	.byte	0x0
 
-# a string to be printed to the screen when 64 bit mode is being enabled
-do_long_mode_msg:
-	.ascii	"Proceeding with 64 bit boot up"
-	.byte	0x0
-
-# a string to be printed to the screen when paging has been disabled
-pgng_off_msg:
-	.ascii	"Disabled paging"
-	.byte	0x0
-
-# a string to be printed to the screen when paging has been enabled
-pgng_on_msg:
-	.ascii	"Enabled paging"
-	.byte	0x0
-
-# a string to be printed to the screen when 64 bit compatibility mode has been enabled
-long_mode_comp_msg:
-	.ascii	"Welcome to 64 bit compatibility mode!"
-	.byte	0x0
-
-# a string to be printed to the screen when 64 bit mode has been fully enabled
 long_mode_full_msg:
 	.ascii	"Welcome to full 64 bit mode!"
 	.byte	0x0

@@ -7,11 +7,11 @@ bootloader	(one for each target architecture)
 		* install GDT
 		* enable protected mode
 		* 16 -> 32 bit
-		? 32 -> 64 bit
+		* 32 -> 64 bit
 		* install TSS
+		* install IDT (protected mode interrupt handlers)
 		enable other processors
 		enable floating point/vector instructions
 		install IVT (real mode interrupt handlers)
-		install IDT (protected mode interrupt handlers)
 		load the kernel
 		interrogate hardware and pass configuration information to the kernel

@@ -951,6 +951,22 @@ default_isr:
 
 	mov	$0x41,%rax
 	call	prputchr64
+
+	# acknowledge that we handled this interrupt
+	movb	$0x20,%al
+	outb	%al,$0x20
+	xor	%rax,%rax
+	inb	$0x60,%al
+	and	$0x01,%rax
+	test	%rax,%rax
+	je	default_isr.0
+	inb	$0x64,%al
+	call	prputchr64
+default_isr.0:
+	# reenable the correct hardware interrupts
+	#movb	$0xfd,%al
+	#movb	$0xff,%ah
+	#call	enablepic
 	
 	# restore all the general purpose register values from the stack
 	popq	%rsi

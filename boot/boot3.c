@@ -10,6 +10,7 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 
 void putchr( char );
+void putstr( char * c );
 
 // entry point
 
@@ -17,7 +18,7 @@ void start()
 {
 	// variables
 	// function body
-	putchr( '!' );
+	putstr( "Welcome to some C code!" );
 
 	for (;;){}
 
@@ -49,3 +50,14 @@ void putchr( char c )
 	return;
 }
 
+void putstr( char * c )
+{
+	// variables
+	// function body
+	while ( c[0] )
+	{
+		putchr( *c++ );
+	}
+
+	// clean up
+}

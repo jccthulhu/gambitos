@@ -19,6 +19,8 @@ void start()
 	// function body
 	putchr( '!' );
 
+	for (;;){}
+
 	// clean up
 	// next point
 }

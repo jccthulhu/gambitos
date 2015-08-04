@@ -225,32 +225,12 @@ putstr.1:
 	retw			# return from subroutine
 
 # some data!
-port_msg:
-	.ascii	"Welcome to 32 bit protected mode!"
-	.byte	0x0
-
 no_cpuid_msg:
 	.ascii	"Your processor does not support CPUID extended"
 	.byte	0x0
 
 no_long_mode_msg:
 	.ascii	"Your processor does not support 64 bit mode"
-	.byte	0x0
-
-do_long_mode_msg:
-	.ascii	"Proceeding with 64 bit boot up"
-	.byte	0x0
-
-pgng_off_msg:
-	.ascii	"Disabled paging"
-	.byte	0x0
-
-pgng_on_msg:
-	.ascii	"Enabled paging"
-	.byte	0x0
-
-long_mode_comp_msg:
-	.ascii	"Welcome to 64 bit compatibility mode!"
 	.byte	0x0
 
 long_mode_full_msg:

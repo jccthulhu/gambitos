@@ -22,15 +22,17 @@
 	# this many levels of granularity makes it easy to isolate specific segemnts in memory
 	# having 4 levels of addressing is required for entering into long mode
 	# each of these tables takes up 0x1000 bytes in memory, and each entry within each table is 8 bytes long, which is a pointer in long mode
+	.set PT_SZ,0x1000	# the size of a page table
 	.set PML4T,0x10000	# this is the address to the 'page map level 4' (PML4) table, which points to the 512 PDP tables
-	.set PDPT,0x11000	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
-	.set PDT,0x12000	# this is the address to the page directory (PD) table, which points to the 512 page tables
-	.set PT,0x13000		# this is the address to the first page table, which points to 512 pages in memory
+	.set PDPT,PML4T+PT_SZ	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
+	.set PDT,PDPT+PT_SZ	# this is the address to the page directory (PD) table, which points to the 512 page tables
+	.set PT,PDT+PT_SZ	# this is the address to the first page table, which points to 512 pages in memory
+	.set VIDT,PT+PT_SZ	# this is an abstraction over the IDT
 
-	.set GDT64_SZ,0x18	# the size of the 64 bit GDT, witch describes segments in memory
-				# it is strange that this is necessary since segments are obsolete in long mode
+	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
 	.set TEXT_ATTR,0x7	# the text attribute value that represents white text on a black background
+
 start:
 	# interrupts are for chumps
 	cli			# disable interrupts to prevent trippple faults, which forces a hard reset
@@ -55,13 +57,10 @@ start:
 				# %cr9 is a bit field that holds information for protected mode, paging enabled, floating point emulation, and more
 	orb	$0x1,%al	# set the protected mode bit in the copied bit field to 1
 	mov	%eax,%cr0	# write the modified bit field to %cr0, the 0th control register
-
 	# set up the Task State Segment (TSS)
 	movw	$TSS_SPC,%di	# set %di to the TSS pointer
 	callw	createtss	# call the 'createtss' subroutine to setup the TSS
 	ljmp	$CODE_SEL,$main	# jump to the 32 bit mode entry point (main) and set the code segment register to the value in the proper GDT index
-
-	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
 ###
 # sets the A20 line, the 21st bit of memory addresses, to enable more than 1MB of memory
@@ -105,8 +104,6 @@ putchr:
 	movw	$0x7,%bx	# print white characters on black background
 	movb	$0xe,%ah	# when we're stil in real mode, set %al to 0xe, which is the bios call to print to the screen
 	int	$0x10		# trigger the interrupt
-	# TODO: error handling
-
 	# restore register values from the stack
 	popw	%ax
 	popw	%bx
@@ -642,7 +639,7 @@ main64:
 	call	enablepic
 	mov	$idtspc,%rdi
 	call	build_idt			# build the IDT
-	mov	$vidt,%rdi
+	mov	$VIDT,%rdi
 	call	build_vidt			# build the VIDT
 	lidt	idtdesc64			# install the IDT
 	sti					# enable interrupts
@@ -1160,7 +1157,7 @@ isr_gate:
 	mov	0x38(%rsp),%rsi
 	# look up the handler
 	mov	%rdi,%rax
-	mov	$vidt,%rbx
+	mov	$VIDT,%rbx
 	movq	(%rbx,%rax,8),%rbx
 	# call it
 	call	*%rbx
@@ -1342,5 +1339,3 @@ idtmap:
 	.quad	isr_47
 	.quad	isr_48
 
-vidt:
-.fill	VIDT_SZ,0x8,0x0

@@ -51,7 +51,6 @@ start:
 	andl	$0x20000000,%edx
 	testl	%edx,%edx
 	je	start.1
-
 	
 	# set protected mode
 	mov	%cr0,%eax	# load control register zero
@@ -69,8 +68,19 @@ start:
 
 start.0:
 	# TODO: Warning, no support for CPUID extended
+	mov	$no_cpuid_msg,%ax
+	call	putstr
+	jmp	start.2
 start.1:
 	# TODO: Warning, no support for long mode
+	mov	$no_long_mode_msg,%ax
+	call	putstr
+	jmp	start.2
+
+start.2:
+	# TODO: Either load a more shitty version of the kernel,
+	# or just explode
+	jmp	.
 
 # utils
 
@@ -162,9 +172,6 @@ create_page_tables.0:
 	popl	%eax
 	ret			# exit this subroutine
 
-
-
-
 # sets the A20 line to enable >1MB of memory
 # accepts no parameters, returns no values
 seta20:
@@ -199,7 +206,23 @@ putchr:
 	popw	%bx
 	retw
 
-	.code32
+###
+# prints a string to the screen in 16 bit mode
+# params:
+#	ax	the pointer to the string
+putstr:
+	# save register values to the stack
+	mov	%ax,%di		# save the pointer
+putstr.0:
+	mov	(%di),%al
+	testb	%al,%al
+	je	putstr.1
+	call	putchr
+	inc	%di
+	jmp	putstr.0
+putstr.1:
+	# restore register values from the stack
+	retw			# return from subroutine
 
 # some data!
 port_msg:

@@ -7,6 +7,8 @@
 	.set TSS_SZ,0x65	# size of the TSS
 	.set TSS64_SZ,0x65	# size of the long mode TSS
 	.set IDT_SZ,0x300	# size of the IDT
+
+	.set VIDT_SZ,0x180	# size of the IDT abstraction
 	.set CODE_SEL,0x8	# the index for the code segment in the GDT
 	.set DATA_SEL,0x10	# the index for the data segment in the GDT
 	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
@@ -616,7 +618,6 @@ main64:
 	# set segment registers
 	mov	$DATA_SEL,%ax
 
-	#movw	%ax,%ss
 	movw	%ax,%ds
 	movw	%ax,%es
 	movw	%ax,%fs
@@ -641,6 +642,8 @@ main64:
 	call	enablepic
 	mov	$idtspc,%rdi
 	call	build_idt			# build the IDT
+	mov	$vidt,%rdi
+	call	build_vidt			# build the VIDT
 	lidt	idtdesc64			# install the IDT
 	sti					# enable interrupts
 
@@ -886,6 +889,26 @@ build_idt.1:
 	popq	%rax
 	ret			# exit this function
 
+###
+# subroutine that constructs the Virtual IDT (VIDT)
+# params:
+#	rdi	pointer to the VIDT
+build_vidt:
+	# save register values onto the stack
+	pushq	%rcx
+	pushq	%rdi
+	# first, fill it in with the default handler
+	mov	$VIDT_SZ,%rcx
+build_vidt.0:
+	movq	$default_handler,-8(%rdi,%rcx,8)
+	loop	build_vidt.0
+	# then fill in specific handlers that we have
+	movq	$keyboard_handler,0x108(%rdi)
+	# restore register values from the stack
+	popq	%rdi
+	popq	%rcx
+	ret
+
 # install specified ISR for specified interrupt into specified IDT
 # params:
 #	rdi	ISR function pointer
@@ -916,212 +939,214 @@ install_isr:
 
 isr_0:
 	pushq	$0x0
-	jmp	default_isr
+	jmp	isr_gate
 isr_1:
 	pushq	$0x1
-	jmp	default_isr
+	jmp	isr_gate
 isr_2:
 	pushq	$0x2
-	jmp	default_isr
+	jmp	isr_gate
 isr_3:
 	pushq	$0x3
-	jmp	default_isr
+	jmp	isr_gate
 isr_4:
 	pushq	$0x4
-	jmp	default_isr
+	jmp	isr_gate
 isr_5:
 	pushq	$0x5
-	jmp	default_isr
+	jmp	isr_gate
 isr_6:
 	pushq	$0x6
-	jmp	default_isr
+	jmp	isr_gate
 isr_7:
 	pushq	$0x7
-	jmp	default_isr
+	jmp	isr_gate
 isr_8:
 	pushq	$0x8
-	jmp	default_isr
+	jmp	isr_gate
 isr_9:
 	pushq	$0x9
-	jmp	default_isr
+	jmp	isr_gate
 isr_10:
 	pushq	$0xA
-	jmp	default_isr
+	jmp	isr_gate
 isr_11:
 	pushq	$0xB
-	jmp	default_isr
+	jmp	isr_gate
 isr_12:
 	pushq	$0xC
-	jmp	default_isr
+	jmp	isr_gate
 isr_13:
 	pushq	$0xD
-	jmp	default_isr
+	jmp	isr_gate
 isr_14:
 	pushq	$0xE
-	jmp	default_isr
+	jmp	isr_gate
 isr_15:
 	pushq	$0xF
-	jmp	default_isr
+	jmp	isr_gate
 isr_16:
 	pushq	$0x10
-	jmp	default_isr
+	jmp	isr_gate
 isr_17:
 	pushq	$0x11
-	jmp	default_isr
+	jmp	isr_gate
 isr_18:
 	pushq	$0x12
-	jmp	default_isr
+	jmp	isr_gate
 isr_19:
 	pushq	$0x13
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_20:
 	pushq	$0x0
 	pushq	$0x14
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_21:
 	pushq	$0x0
 	pushq	$0x15
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_22:
 	pushq	$0x0
 	pushq	$0x16
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_23:
 	pushq	$0x0
 	pushq	$0x17
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_24:
 	pushq	$0x0
 	pushq	$0x18
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_25:
 	pushq	$0x0
 	pushq	$0x19
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_26:
 	pushq	$0x0
 	pushq	$0x1a
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_27:
 	pushq	$0x0
 	pushq	$0x1b
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_28:
 	pushq	$0x0
 	pushq	$0x1c
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_29:
 	pushq	$0x0
 	pushq	$0x1d
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_30:
 	pushq	$0x0
 	pushq	$0x1e
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_31:
 	pushq	$0x0
 	pushq	$0x1f
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_32:
 	pushq	$0x0
 	pushq	$0x20
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_33:
 	pushq	$0x0
 	pushq	$0x21
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_34:
 	pushq	$0x0
 	pushq	$0x22
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_35:
 	pushq	$0x0
 	pushq	$0x23
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_36:
 	pushq	$0x0
 	pushq	$0x24
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_37:
 	pushq	$0x0
 	pushq	$0x25
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_38:
 	pushq	$0x0
 	pushq	$0x26
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_39:
 	pushq	$0x0
 	pushq	$0x27
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_40:
 	pushq	$0x0
 	pushq	$0x28
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_41:
 	pushq	$0x0
 	pushq	$0x29
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_42:
 	pushq	$0x0
 	pushq	$0x2a
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_43:
 	pushq	$0x0
 	pushq	$0x2b
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_44:
 	pushq	$0x0
 	pushq	$0x2c
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_45:
 	pushq	$0x0
 	pushq	$0x2d
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_46:
 	pushq	$0x0
 	pushq	$0x2e
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_47:
 	pushq	$0x0
 	pushq	$0x2f
-	jmp	default_isr
+	jmp	isr_gate
 
 isr_48:
 	pushq	$0x0
 	pushq	$0x30
-	jmp	default_isr
+	jmp	isr_gate
 
-# default ISR, for testing purposes
-default_isr:
+### 
+# ISR basis; all interrupts go through this subroutine, which will
+# set up and make the call to the actual interrupt handlers appropriately
+isr_gate:
 	# save all the general purpose register values to the stack
 	# note: pusha is apparently not supported in long mode
 	pushq	%rax
@@ -1130,21 +1155,27 @@ default_isr:
 	pushq	%rdx
 	pushq	%rdi
 	pushq	%rsi
-
-	mov	$0x41,%rax
-	call	prputchr64
+	# load the error code and interrupt vector
+	mov	0x30(%rsp),%rdi
+	mov	0x38(%rsp),%rsi
+	# look up the handler
+	mov	%rdi,%rax
+	mov	$vidt,%rbx
+	movq	(%rbx,%rax,8),%rbx
+	# call it
+	call	*%rbx
 
 	# acknowledge that we handled this interrupt
 	movb	$0x20,%al
 	outb	%al,$0x20
-	xor	%rax,%rax
-	inb	$0x60,%al
-	and	$0x01,%rax
-	test	%rax,%rax
-	je	default_isr.0
-	inb	$0x64,%al
-	call	prputchr64
-default_isr.0:
+#	xor	%rax,%rax
+#	inb	$0x60,%al
+#	and	$0x01,%rax
+#	test	%rax,%rax
+#	je	isr_gate.0
+#	inb	$0x64,%al
+#	call	prputchr64
+isr_gate.0:
 	# reenable the correct hardware interrupts
 	#movb	$0xfd,%al
 	#movb	$0xff,%ah
@@ -1160,6 +1191,43 @@ default_isr.0:
 	addq	$0x8,%rsp	# drop interrupt number
 	addq	$0x8,%rsp	# drop error code
 	iretq			# return in an extra special, interrupt-y kinda way
+
+###
+# default interrupt service routine
+# params:
+#	rdi	interrupt number
+#	rsi	error code
+default_handler:
+	ret
+
+###
+# keyboard interrupt handler
+# params:
+#	rdi	interrupt number
+#	rsi	error code
+keyboard_handler:
+	# save register values
+	pushq	%rax
+	pushq	%rdi
+	pushq	%rsi
+	# read the keyboard data port
+	inb	$0x64,%al
+	andb	$0x01,%al
+	testb	%al,%al
+	je	keyboard_handler.0
+	# there is data to be read!
+	xor	%rax,%rax
+	inb	$0x60,%al
+	mov	%rax,%rdi
+	call	prputint64
+	mov	$0x2c,%rax
+	call	prputchr64
+keyboard_handler.0:
+	# restore register values
+	popq	%rsi
+	popq	%rdi
+	popq	%rax
+	ret
 
 	.align	0x8
 
@@ -1274,3 +1342,5 @@ idtmap:
 	.quad	isr_47
 	.quad	isr_48
 
+vidt:
+.fill	VIDT_SZ,0x8,0x0

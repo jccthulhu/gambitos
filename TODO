@@ -8,11 +8,12 @@ bootloader	(one for each target architecture)
 		* enable protected mode
 		* 16 -> 32 bit
 		* 32 -> 64 bit
+		* 16 -> 64 bit
 		* install TSS
 		* install IDT (protected mode interrupt handlers)
+		load the kernel
 		enable other processors
 		enable floating point/vector instructions
-		load the kernel
 		interrogate hardware and pass configuration information to the kernel
-		pass table location to the kernel
+		pass table locations to the kernel
 		install IVT (real mode interrupt handlers)

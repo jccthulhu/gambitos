@@ -32,6 +32,7 @@
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
 	.set TEXT_ATTR,0x7	# the text attribute value that represents white text on a black background
+	.set NEXT_SEG,0x8c00	# the next stage entry point
 
 start:
 	# interrupts are for chumps
@@ -634,7 +635,8 @@ main64:
 	sti					# enable interrupts
 
 main64.0:
-	jmp	.
+	mov	$NEXT_SEG,%rax
+	jmp	*%rax
 
 ###
 # build the long mode TSS

@@ -1,7 +1,8 @@
 /**
  *	boot3.c
  *
- *	"Third" stage bootloader; gets loaded with the second stage, but is the first C code we can use in the boot process
+ *	"Third" stage bootloader; gets loaded with the second stage, but is
+ *	the first C code we can use in the boot process
  **/
 
 // definitions
@@ -18,6 +19,11 @@ void start()
 	// variables
 	// function body
 	putstr( "Welcome to some C code!" );
+
+	// install actual interrupt handlers
+	// set up actual page tables
+	// load up the bare minimum set of processes we need to run this piece
+	// schedule the timer, round robin style
 
 	for (;;)
 	{
@@ -48,7 +54,10 @@ void putchr( char c )
 	// increment
 	currentVideo += 2;
 	// maybe wrap
-	if ( ((int)( currentVideo - VIDEO_MEM )) > VIDEO_MEM_SIZE ) { currentVideo = (char*)VIDEO_MEM; }
+	if ( ((int)( currentVideo - VIDEO_MEM )) > VIDEO_MEM_SIZE )
+	{ 
+		currentVideo = (char*)VIDEO_MEM;
+	}
 
 	// clean up
 	return;

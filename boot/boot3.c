@@ -9,7 +9,6 @@
 #define	VIDEO_MEM	0xb8000
 #define	VIDEO_MEM_SIZE	0xfa0
 
-void putchr( char );
 void putstr( char * c );
 
 // entry point
@@ -20,7 +19,12 @@ void start()
 	// function body
 	putstr( "Welcome to some C code!" );
 
-	for (;;){}
+	for (;;)
+	{
+		// as my old comp sci teacher once said:
+		// "operating systems are easy; if nothing happens, do nothing"
+		asm( "hlt" );
+	}
 
 	// clean up
 	// next point
@@ -40,7 +44,7 @@ void putchr( char c )
 	// write the character
 	currentVideo[0] = c;
 	// write the attributes
-	currentVideo[1] = 0x07;
+	currentVideo[1] = 0x70;
 	// increment
 	currentVideo += 2;
 	// maybe wrap

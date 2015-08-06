@@ -5,6 +5,9 @@
  *	the first C code we can use in the boot process
  **/
 
+// inclusions
+#include "process.h"
+
 // definitions
 
 #define	VIDEO_MEM	0xb8000

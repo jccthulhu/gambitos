@@ -557,32 +557,41 @@ install_isr:
 
 isr_0:
 	pushq	$0x0
+	pushq	$0x0
 	jmp	isr_gate
 isr_1:
+	pushq	$0x0
 	pushq	$0x1
 	jmp	isr_gate
 isr_2:
+	pushq	$0x0
 	pushq	$0x2
 	jmp	isr_gate
 isr_3:
+	pushq	$0x0
 	pushq	$0x3
 	jmp	isr_gate
 isr_4:
+	pushq	$0x0
 	pushq	$0x4
 	jmp	isr_gate
 isr_5:
+	pushq	$0x0
 	pushq	$0x5
 	jmp	isr_gate
 isr_6:
+	pushq	$0x0
 	pushq	$0x6
 	jmp	isr_gate
 isr_7:
+	pushq	$0x0
 	pushq	$0x7
 	jmp	isr_gate
 isr_8:
 	pushq	$0x8
 	jmp	isr_gate
 isr_9:
+	pushq	$0x0
 	pushq	$0x9
 	jmp	isr_gate
 isr_10:
@@ -601,9 +610,11 @@ isr_14:
 	pushq	$0xE
 	jmp	isr_gate
 isr_15:
+	pushq	$0x0
 	pushq	$0xF
 	jmp	isr_gate
 isr_16:
+	pushq	$0x0
 	pushq	$0x10
 	jmp	isr_gate
 isr_17:

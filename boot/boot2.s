@@ -778,15 +778,25 @@ isr_48:
 isr_gate:
 	# save all the general purpose register values to the stack
 	# note: pusha is apparently not supported in long mode
-	pushq	%rax
-	pushq	%rbx
-	pushq	%rcx
-	pushq	%rdx
-	pushq	%rdi
-	pushq	%rsi
+	pushq	%rax	# 8
+	pushq	%rbx	# 10
+	pushq	%rcx	# 18
+	pushq	%rdx	# 20
+	pushq	%rdi	# 28
+	pushq	%rsi	# 30
+
+	pushq	%r8	# 38
+	pushq	%r9	# 40
+	pushq	%r10	# 48
+	pushq	%r11	# 50
+	pushq	%r12	# 58
+	pushq	%r13	# 60
+	pushq	%r14	# 68
+	pushq	%r15	# 70
+
 	# load the error code and interrupt vector
-	mov	0x30(%rsp),%rdi
-	mov	0x38(%rsp),%rsi
+	mov	0x70(%rsp),%rdi
+	mov	0x78(%rsp),%rsi
 	# look up the handler
 	mov	%rdi,%rax
 	mov	$VIDT,%rbx
@@ -797,20 +807,18 @@ isr_gate:
 	# acknowledge that we handled this interrupt
 	movb	$0x20,%al
 	outb	%al,$0x20
-#	xor	%rax,%rax
-#	inb	$0x60,%al
-#	and	$0x01,%rax
-#	test	%rax,%rax
-#	je	isr_gate.0
-#	inb	$0x64,%al
-#	call	prputchr64
-isr_gate.0:
-	# reenable the correct hardware interrupts
-	#movb	$0xfd,%al
-	#movb	$0xff,%ah
-	#call	enablepic
-	
+
 	# restore all the general purpose register values from the stack
+
+	popq	%r15	
+	popq	%r14	
+	popq	%r13	
+	popq	%r12	
+	popq	%r11	
+	popq	%r10	
+	popq	%r9	
+	popq	%r8	
+
 	popq	%rsi
 	popq	%rdi
 	popq	%rdx

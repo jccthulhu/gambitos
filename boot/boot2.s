@@ -803,17 +803,11 @@ isr_gate:
 	pushq	%r14	# 68
 	pushq	%r15	# 70
 
-	# shuffle registers, for the sake of system calls
-	mov	%r9,%r11
-	mov	%r8,%r10
-	mov	%rcx,%r9
-	mov	%rdx,%r8
-	mov	%rsi,%rcx
-	mov	%rdi,%rdx
+	pushq	%rbp	# 78
 
 	# load the error code and interrupt vector
-	mov	0x70(%rsp),%rdi
-	mov	0x78(%rsp),%rsi
+	mov	0x78(%rsp),%rdi
+	mov	0x80(%rsp),%rsi
 	# look up the handler
 	mov	$VIDT,%rax
 	movq	(%rax,%rdi,8),%rax
@@ -827,6 +821,8 @@ isr_gate:
 	# TODO: acknowledge PIC 2 interrupts
 
 	# restore all the general purpose register values from the stack
+
+	popq	%rbp
 
 	popq	%r15	
 	popq	%r14	

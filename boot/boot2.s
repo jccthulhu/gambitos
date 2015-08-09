@@ -6,7 +6,7 @@
 	.set TSS_SZ,0x65	# size of the TSS
 	.set TSS64_SZ,0x65	# size of the long mode TSS
 	.set IDT_SZ,0x300	# size of the IDT
-	.set VIDT_SZ,0x180	# size of the IDT abstraction
+	.set VIDT_SZ,0x280	# size of the IDT abstraction
 
 	.set CODE_SEL,0x8	# Code segment index in the GDT
 	.set DATA_SEL,0x10	# Data segment index in the GDT

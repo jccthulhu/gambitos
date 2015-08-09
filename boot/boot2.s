@@ -794,6 +794,14 @@ isr_gate:
 	pushq	%r14	# 68
 	pushq	%r15	# 70
 
+	# shuffle registers, for the sake of system calls
+	mov	%r9,%r12
+	mov	%r8,%r10
+	mov	%rcx,%r9
+	mov	%rdx,%r8
+	mov	%rsi,%rcx
+	mov	%rdi,%rdx
+
 	# load the error code and interrupt vector
 	mov	0x70(%rsp),%rdi
 	mov	0x78(%rsp),%rsi

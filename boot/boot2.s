@@ -20,6 +20,7 @@
 	.set PDT,PDPT+PT_SZ	# the 2nd level of the paging hierarchy
 	.set PT,PDT+PT_SZ	# the page table (1st level)
 	.set VIDT,PT+PT_SZ	# virtual interrupt table
+	.set SYSTBL,VIDT+VIDT_SZ	# the system call table
 
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
@@ -499,6 +500,14 @@ build_idt.1:
 	cmpq	%rdx,%rax	# check it against 0x31
 	jne	build_idt.1	# if the loop counter is 31, then we can stop looping
 				# otherwise, jump to the start of the loop and continue
+	# install the system call gate for int 0x31
+	mov	$syscall_gate,%rdi	# load the function pointer
+	# IDT pointer is already in place
+	# the interrupt number is already in place
+	movb	$0x8e,%cl	# set the type:attributes
+				# specifically, set it as present, kernel priv,
+				#	64 bit interrupt gate
+	call	install_isr
 	# restore register values from the stack
 	popq	%rsi
 	popq	%rdi
@@ -837,6 +846,55 @@ isr_gate:
 	addq	$0x8,%rsp	# drop interrupt number
 	addq	$0x8,%rsp	# drop error code
 	iretq			# return in an extra special, interrupt-y kinda way
+
+
+###
+# system call redirection handler
+# params:
+#	rdi	system call number
+syscall_gate:
+	# save all the general purpose register values to the stack
+	# note: pusha is apparently not supported in long mode
+	pushq	%rax	# 8
+	pushq	%rbx	# 10
+	pushq	%rcx	# 18
+	pushq	%rdx	# 20
+	pushq	%rdi	# 28
+	pushq	%rsi	# 30
+
+	pushq	%r8	# 38
+	pushq	%r9	# 40
+	pushq	%r10	# 48
+	pushq	%r11	# 50
+	pushq	%r12	# 58
+	pushq	%r13	# 60
+	pushq	%r14	# 68
+	pushq	%r15	# 70
+
+	# NOTE: we do not preserve %rbx; as per our ABI, we have no
+	# obligation to do so
+
+	mov	$SYSTBL,%rbx		# load the pointer to the syscall table
+	mov	(%rbx,%rax,8),%rax	# index into it to get the appropriate syscall handler
+	call	*%rax			# call the handler
+
+	# restore all the general purpose register values from the stack
+	popq	%r15	
+	popq	%r14	
+	popq	%r13	
+	popq	%r12	
+	popq	%r11	
+	popq	%r10	
+	popq	%r9	
+	popq	%r8	
+
+	popq	%rsi
+	popq	%rdi
+	popq	%rdx
+	popq	%rcx
+	popq	%rbx
+	popq	%rax
+	iret		# return in an extra special, interrupt-y kinda way
 
 ###
 # default interrupt service routine

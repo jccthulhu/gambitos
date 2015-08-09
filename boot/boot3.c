@@ -13,6 +13,7 @@
 #define	VIDEO_MEM	0xb8000
 #define	VIDEO_MEM_SIZE	0xfa0
 
+
 void putstr( char * c );
 
 // entry point

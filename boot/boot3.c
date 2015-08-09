@@ -13,8 +13,12 @@
 #define	VIDEO_MEM	0xb8000
 #define	VIDEO_MEM_SIZE	0xfa0
 
+#define	SYSCALL_TABLE	0x14180		// TODO: this passed from the bootloader
 
 void putstr( char * c );
+
+// system calls!
+
 
 // entry point
 
@@ -25,6 +29,7 @@ void start()
 	putstr( "Welcome to some C code!" );
 
 	// install actual interrupt handlers
+	// install system call handlers
 	// set up actual page tables
 	// load up the bare minimum set of processes we need to run this piece
 	// schedule the timer, round robin style

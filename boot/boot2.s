@@ -853,47 +853,27 @@ isr_gate:
 # params:
 #	rdi	system call number
 syscall_gate:
-	# save all the general purpose register values to the stack
-	# note: pusha is apparently not supported in long mode
-	pushq	%rax	# 8
-	pushq	%rbx	# 10
-	pushq	%rcx	# 18
-	pushq	%rdx	# 20
-	pushq	%rdi	# 28
-	pushq	%rsi	# 30
-
-	pushq	%r8	# 38
-	pushq	%r9	# 40
-	pushq	%r10	# 48
-	pushq	%r11	# 50
-	pushq	%r12	# 58
-	pushq	%r13	# 60
-	pushq	%r14	# 68
-	pushq	%r15	# 70
-
-	# NOTE: we do not preserve %rbx; as per our ABI, we have no
-	# obligation to do so
+	# save registers as per the System V ABI
+	pushq	%rbp
+	pushq	%rbx
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
 
 	mov	$SYSTBL,%rbx		# load the pointer to the syscall table
 	mov	(%rbx,%rax,8),%rax	# index into it to get the appropriate syscall handler
 	call	*%rax			# call the handler
 
-	# restore all the general purpose register values from the stack
-	popq	%r15	
-	popq	%r14	
-	popq	%r13	
-	popq	%r12	
-	popq	%r11	
-	popq	%r10	
-	popq	%r9	
-	popq	%r8	
+	# return value is in rax; that's how that works
 
-	popq	%rsi
-	popq	%rdi
-	popq	%rdx
-	popq	%rcx
+	# restore registers as per the System V ABI
+	popq	%r15
+	popq	%r14
+	popq	%r13
+	popq	%r12
 	popq	%rbx
-	popq	%rax
+	popq	%rbp
 	iret		# return in an extra special, interrupt-y kinda way
 
 ###

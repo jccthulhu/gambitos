@@ -798,15 +798,16 @@ isr_gate:
 	mov	0x70(%rsp),%rdi
 	mov	0x78(%rsp),%rsi
 	# look up the handler
-	mov	%rdi,%rax
-	mov	$VIDT,%rbx
-	movq	(%rbx,%rax,8),%rbx
+	mov	$VIDT,%rax
+	movq	(%rax,%rdi,8),%rax
 	# call it
-	call	*%rbx
+	call	*%rax
 
 	# acknowledge that we handled this interrupt
 	movb	$0x20,%al
 	outb	%al,$0x20
+
+	# TODO: acknowledge PIC 2 interrupts
 
 	# restore all the general purpose register values from the stack
 

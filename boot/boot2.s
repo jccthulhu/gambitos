@@ -795,7 +795,7 @@ isr_gate:
 	pushq	%r15	# 70
 
 	# shuffle registers, for the sake of system calls
-	mov	%r9,%r12
+	mov	%r9,%r11
 	mov	%r8,%r10
 	mov	%rcx,%r9
 	mov	%rdx,%r8

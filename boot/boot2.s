@@ -846,9 +846,11 @@ isr_gate:
 	pushq	%r14	# 68
 	pushq	%r15	# 70
 
+	pushq	%rbp	# 78
+
 	# load the error code and interrupt vector
-	mov	0x70(%rsp),%rdi
-	mov	0x78(%rsp),%rsi
+	mov	0x78(%rsp),%rdi
+	mov	0x80(%rsp),%rsi
 	# look up the handler
 	mov	%rdi,%rax
 	mov	$VIDT,%rbx
@@ -861,6 +863,8 @@ isr_gate:
 	outb	%al,$0x20
 
 	# restore all the general purpose register values from the stack
+
+	popq	%rbp
 
 	popq	%r15	
 	popq	%r14	

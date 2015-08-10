@@ -41,12 +41,8 @@ void start()
 	installSyscalls( ((long*)SYSCALL_TABLE) );
 	// set up actual page tables
 	// load up the bare minimum set of processes we need to run this piece
-	// schedule the timer, round robin style
-	// jump out to user space
-
-	// DEBUG
-	putint( user_allocate( 0x1af ) );
-	// END DEBUG
+	// start the scheduler, round robin style
+	// just hang out until the scheduler fires
 
 	for (;;)
 	{
@@ -142,19 +138,12 @@ void installSyscalls( long * syscallTable )
 void * allocate( long numPages )
 {
 	// TODO
-	// DEBUG
-	putstr( "Allocating," );
-	putint( numPages );
-	// END DEBUG
-	return 0x145f;
+	return 0;
 }
 
 long deallocate( void * pagePointer )
 {
 	// TODO
-	// DEBUG
-	putstr( "Deallocating,") ;
-	// END DEBUG
 	return -1;
 }
 

@@ -4,6 +4,9 @@
  *	definitions for processes
  **/
 
+#ifndef	PROCESS_H_
+#define	PROCESS_H_
+
 // inclusions
 
 // type definitions
@@ -31,4 +34,6 @@ typedef struct process_str
 	thread_t * threads;	// all of the threads associated with this process
 				// thread id 0 is the main thread
 } process_t;
+
+#endif
 

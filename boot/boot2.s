@@ -5,8 +5,9 @@
 	.set GDT_SIZE,0x20	# size of the 32 bit global descriptor table
 	.set TSS_SZ,0x65	# size of the TSS
 	.set TSS64_SZ,0x65	# size of the long mode TSS
-	.set IDT_SZ,0x300	# size of the IDT
+	.set IDT_SZ,0x400	# size of the IDT
 	.set VIDT_SZ,0x280	# size of the IDT abstraction
+	.set SYSTBL_SZ,0x200	# size of the system call table
 
 	.set CODE_SEL,0x8	# Code segment index in the GDT
 	.set DATA_SEL,0x10	# Data segment index in the GDT
@@ -25,6 +26,7 @@
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
 	.set NEXT_SEG,0x8c00	# the next stage entry point
+	.set KERN_STACK,0x40000	# kernel stack
 
 start:
 	# interrupts are for chumps
@@ -277,6 +279,7 @@ main64:
 
 main64.0:
 	mov	$NEXT_SEG,%rax
+	mov	$KERN_STACK,%rsp
 	jmp	*%rax
 
 ###
@@ -870,7 +873,7 @@ syscall_gate:
 	popq	%r12
 	popq	%rbx
 	popq	%rbp
-	iret		# return in an extra special, interrupt-y kinda way
+	iretq		# return in an extra special, interrupt-y kinda way
 
 ###
 # default interrupt service routine
@@ -899,9 +902,9 @@ keyboard_handler:
 	xor	%rax,%rax
 	inb	$0x60,%al
 	mov	%rax,%rdi
-	call	prputint64
+	#call	prputint64
 	mov	$0x2c,%rax
-	call	prputchr64
+	#call	prputchr64
 keyboard_handler.0:
 	# restore register values
 	popq	%rsi

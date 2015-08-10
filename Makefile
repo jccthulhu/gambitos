@@ -30,7 +30,8 @@ buildboot2:
 
 buildboot3:
 	$(CC) $(INC) -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o boot3.o
-	$(LD) -o boot3 -Ttext 0x8c00 -e start -S -N --oformat binary boot3.o
+	$(AS) boot/kern_assist.s -o kern_assist.o
+	$(LD) -o boot3 -Ttext 0x8c00 -e start -S -N --oformat binary boot3.o kern_assist.o
 
 clean:
 	rm -f boot1 boot1.o boot2 boot2.o boot3 boot3.o boot.dmg boot.img parttbl

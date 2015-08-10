@@ -45,7 +45,7 @@ void start()
 	// jump out to user space
 
 	// DEBUG
-	putint( (long)0x00010abcd );
+	putint( user_allocate( 0x1af ) );
 	// END DEBUG
 
 	for (;;)
@@ -144,8 +144,9 @@ void * allocate( long numPages )
 	// TODO
 	// DEBUG
 	putstr( "Allocating," );
+	putint( numPages );
 	// END DEBUG
-	return 0;
+	return 0x145f;
 }
 
 long deallocate( void * pagePointer )
@@ -157,17 +158,4 @@ long deallocate( void * pagePointer )
 	return -1;
 }
 
-
-// TODO: move these to user space
-void * user_allocate( long numPages )
-{
-	asm( "movq	$0x10,%rax" );
-	asm( "int	$0x31" );
-}
-
-long user_deallocate( void * pagePointer )
-{
-	asm( "movq	$0x11,%rax" );
-	asm( "int	$0x31" );
-}
 

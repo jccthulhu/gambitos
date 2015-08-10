@@ -297,7 +297,7 @@ enable_paging:
 	# END DEBUGGING
 
 	popl	%eax			# restore the value of %eax from the stack
-	ret				# exit
+	ret				# return from the subroutine
 
 
 
@@ -311,7 +311,7 @@ enable_pae:
 	orl	$0x20,%eax		# set PAE bit in %eax
 	movl	%eax,%cr4		# write %eax into the 4th control register
 	popl	%eax			# restore value of register from stack
-	ret
+	ret				# return from the subroutine
 
 
 
@@ -319,73 +319,103 @@ enable_pae:
 # enable long mode
 # params: none
 # returns: none
-# TODO: continue elaborating commends from here on
 enable_lm:
 	# save register values onto the stack
 	pushl	%ecx
 	pushl	%eax
-	movl	$0xC0000080,%ecx	# select the EFER Moder Specific Register (MSR)
-	rdmsr				# read the MSR
-	orl	$0x100,%eax		# set the long mode bit
-	wrmsr				# save the MSR
+
+	movl	$0xC0000080,%ecx	# set %ecx to the selector value for the EFER Model Specific Register (MSR)
+	rdmsr				# execute the instruction to get the MSR value specified in %ecx and place the result into %eax
+	orl	$0x100,%eax		# set the long mode bit in the EFER value
+	wrmsr				# write the new bit field in %eax to the MSR to turn on long mode
+
 	# restore register values from the stack
 	popl	%eax
 	popl	%ecx
-	ret				# exit
+	ret				# return from the subroutine
 
+
+
+###
+# create the page tables
+# params: none
+# returns: none
 create_page_tables:
 	# save register values onto the stack
 	pushl	%eax
 	pushl	%ebx
 	pushl	%ecx
 	pushl	%edi
-	# loop to clear the tables
-	movl	$PML4T,%edi		# load pointer to the start of the page table construct
-	movl	$0x1000,%ecx		# set loop counter to the size of the page table construct in doublewords
+
+	# set up values for a loop to clear the tables
+	movl	$PML4T,%edi		# load the pointer to the start of the page table construct into %edi
+	movl	$0x1000,%ecx		# use %ecx as a loop counter (used by the loop instruction)
+					# set the loop counter to the size in terms of double-words of the page table construct,
+					# which is the continuous space in memory that contians the page table addressing heirarchy
+# loop to clear all entries at all levels of the page table addressing heirarchy
 create_page_tables.1:
 	movl	$0x0,(%edi)		# write zero to the current index of the page table construct
 	addl	$0x4,%edi		# increment the page table construct pointer
-	loop	create_page_tables.1	# decrement %ecx, check for zero and jump to the start of the loop and continue
-	# make the first entry of the PML4T point to the first PDPT
-	movl	$PML4T,%edi	# load &PML4T
-	movl	$PDPT,%eax	# load &PDPT
-	orl	$0x03,%eax	# set PDPT to be Present/Readable/Writable
-	movl	%eax,(%edi)	# PML4T[0] = &PDPT
-	# make the first entry of the PDPT point to the first PDT
-	movl	$PDPT,%edi	# load &PDPT
-	movl	$PDT,%eax	# load $PDT
-	orl	$0x03,%eax	# set the PDT to be Present/Readable/Writable
-	movl	%eax,(%edi)	# PDPT[0] = &PDT
+	loop	create_page_tables.1	# decrement %ecx, check for zero, 
+					# and jump to the beginning of the loop to continue if the counter (%ecx) is non-zero
+
+	# make the first entry of the PML4 table point to the first PDP table
+	movl	$PML4T,%edi		# load the address of the PML4 table into %edi
+	movl	$PDPT,%eax		# load the address of the PDP table into %eax
+	orl	$0x03,%eax		# set the lower two bits of the PDP table pointer to be Present/Readable/Writable
+					# this is valid since all addresses must be aligned and therefore don't use the lower two bits
+	movl	%eax,(%edi)		# set the first entry of the PML4 table to the pointer to the first PDP table
+
+	# make the first entry of the PDP table point to the first PD table
+	movl	$PDPT,%edi		# load the address of the PDP table into %edi
+	movl	$PDT,%eax		# load the address of the PD table into %eax
+	orl	$0x03,%eax		# set the lower two bits of the PD table pointer to be Present/Readable/Writable
+	movl	%eax,(%edi)		# set the first entry of the PDP table to the pointer to the first PD table
+
 	# make the first entry of the PDT point to the first PT
-	movl	$PDT,%edi	# load &PDT
-	movl	$PT,%eax	# load &PT
-	orl	$0x03,%eax	# set the PT to be Present/Readable/Writable
-	movl	%eax,(%edi)	# PDT[0] = &PT
-	# identity map the PT
-	movl	$PT,%edi	# load &PT
-	movl	$0x200,%ecx	# set the loop counter to the size of the Page Table (PT) in quadwords
-	movl	$0x03,%ebx	# each page is Present/Readable/Writable
+	movl	$PDT,%edi		# load the address of the PD table into %edi
+	movl	$PT,%eax		# load the address of the Page table into %eax
+	orl	$0x03,%eax		# set the lower two bits of the Page table pointer to be Present/Readable/Writable
+	movl	%eax,(%edi)		# set the first entry of the PD table to the pointer to the first Page table
+
+	# set up the first page table to have every entry point to the corresponding physical page of memory
+	# we set up the first page table to identiy map to the first pages in memory, starting with the page at address 0x0
+	# this is needed because we are currently operating within the bounds of the zeroth page table and need to prevent pointer confusion when paging is finally turned on
+	movl	$PT,%edi		# load the address of the first page table into %edi
+	movl	$0x200,%ecx		# set the loop counter to the size in terms of quad-words of the Page Table (PT)
+	movl	$0x03,%ebx		# each page is Present/Readable/Writable, so the pointer to the zeroth page and all other pages will end with 0x03
+# loop to set up the entries of the zeroth page table
 create_page_tables.0:
-	movl	%ebx,(%edi)	# write the page address to the page table
-	addl	$0x08,%edi	# increment the page table index
-	addl	$0x1000,%ebx	# increment the page address
-	loop	create_page_tables.0	# jump to the start of the loop and continue
-	# set all this shit to be canonical
-	movl	$PML4T,%eax	# load &PML4T
-	movl	%eax,%cr3	# save PML4T as the location of the PML4T
+	movl	%ebx,(%edi)		# write the address of the current page into the appropriate page table entry
+	addl	$0x08,%edi		# increment the page table index
+	addl	$0x1000,%ebx		# increment the page address
+	loop	create_page_tables.0	# jump to the start of the loop and continue, decrementing %ecx, while %ecx remains non-zero
+
+	# load the pointer to the PML4 table into Control Register 3 (%cr3), which will allow the CPU to use our virtual memory configuration
+	movl	$PML4T,%eax	# load the address to the PML4 table into %eax
+	movl	%eax,%cr3	# save the address to the PML4 table into Control Register 3 to notify the CPU of its location
+				# this is %cr3's only purpose in life
+
 	# restore register values from the stack
 	popl	%edi
 	popl	%ecx
 	popl	%ebx
 	popl	%eax
-	ret			# exit this subroutine
+	ret				# return from thie subroutine
 
-# printing stuff
+
+
+###
+# data used for printing stuff
 current_video_mem:
 	.long	VIDEO_BASE
 	.byte	0x0		# x
 	.byte	0x0		# y
 
+
+# TODO: CONTINUE COMMENTING HERE
+
+###
 # clear the screen
 prclrscrn:
 	# save register values to the stack

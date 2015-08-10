@@ -17,6 +17,7 @@
 
 // utilities
 void putstr( char * c );
+void putint( long v );
 void installSyscalls( long * syscallTable );
 
 // system calls!
@@ -44,11 +45,7 @@ void start()
 	// jump out to user space
 
 	// DEBUG
-	user_allocate( 1 );
-	user_allocate( 1 );
-	user_allocate( 1 );
-	user_allocate( 1 );
-	user_allocate( 1 );
+	putint( (long)0x00010abcd );
 	// END DEBUG
 
 	for (;;)
@@ -99,6 +96,34 @@ void putstr( char * c )
 	}
 
 	// clean up
+}
+
+void putint( long v )
+{
+	// variables
+	char vals[16];
+
+	// function body
+	for ( int i = 0; i < 16; i++ )
+	{
+		vals[i] = v & 0x0f;	// grab the lowest nibble
+		if ( vals[i] > 9 )
+		{
+			vals[i] = (vals[i] - 10) + 'A';
+		}
+		else
+		{
+			vals[i] = vals[i] + '0';
+		}
+		v = v >> 0x4;
+	}
+	for ( int i = 15; i >= 0; i-- )
+	{
+		putchr( vals[i] );
+	}
+
+	// clean up
+	return;
 }
 
 void installSyscalls( long * syscallTable )

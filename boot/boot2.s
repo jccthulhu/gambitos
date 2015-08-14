@@ -30,6 +30,8 @@
 	.set GDT64_SZ,0x18	# the size of the 64 bit GDT, witch describes segments in memory
 				# it is strange that this is necessary since segments are obsolete in long mode
 
+	.set TEXT_ATTR,0x7	# the text attribute value that represents white text on a black background
+
 start:
 	# interrupts are for chumps
 	cli			# disable interrupts to prevent trippple faults, which forces a hard reset
@@ -413,177 +415,241 @@ current_video_mem:
 	.byte	0x0		# y
 
 
-# TODO: CONTINUE COMMENTING HERE
 
 ###
 # clear the screen
+# params: none
+# returns: none
 prclrscrn:
 	# save register values to the stack
 	pushl	%eax
 	pushl	%ecx
-	movl	$current_video_mem,%eax
-	movl	$VIDEO_BASE,(%eax)
-	movw	$0x0,0x4(%eax)
-	movl	$0x25,%ecx
+
+	movl	$current_video_mem,%eax	# load the pointer to video memory into %eax
+	movl	$VIDEO_BASE,(%eax)	# write our video memory structure data into video memory
+	movw	$0x0,0x4(%eax)		# zero out the fourth and fifth indices within the video memory structure
+					# these two indices hold the x and y poitition of the cursor respectively
+	movl	$0x25,%ecx		# use %ecx as a counter for the loop command
+					# TODO: we're not sure if 0x25 is the correct amount of lines on screen...
+# a loop to clear each line of the screen
 prclrscrn.0:
-	call	prputn
-	loop	prclrscrn.0
-	movl	$current_video_mem,%eax
-	movl	$VIDEO_BASE,(%eax)
-	movw	$0x0,0x4(%eax)
-	movl	$0x25,%ecx
+	call	prputn			# call the prputn subroutine print a clear line onto the screen
+	loop	prclrscrn.0		# while %ecx is non-zero, decrement its value and continue through the loop
+
+	# reset the video memeory structure
+	movl	$current_video_mem,%eax	# load the pointer to the video memory structure into %eax
+	movl	$VIDEO_BASE,(%eax)	# write our video memory structure data into video memory
+	movw	$0x0,0x4(%eax)		# zero out the fourth and fifth indices within the video memory structure
+					# resets the x and y position of the cursor
+
 	# restore register values to the stack
 	popl	%ecx
 	popl	%eax
-	ret
+	ret				# return from the subroutine
 
-# print the string pointed to by %eax
+
+
+###
+# print a string onto the screen
+# params:
+# 	eax	a poiter to the string to print to the screen
+# returns: none
 prputstr:
 	# save register values to the stack
 	pushl	%eax		
 	pushl	%edi
-	movl	%eax,%edi	# save string pointer to %edi
-	xorl	%eax,%eax	# %eax = 0
+
+	movl	%eax,%edi		# save the string pointer into %edi
+	xorl	%eax,%eax		# zero out %eax by XORing itself
 prputstr.0:
-	movb	(%edi),%al	# load the character pointed to by the string pointer
-	testb	%al,%al		# test the character for 0
-	je	prputstr.1	# if the character is 0, we're done and can exit
-	call	prputchr	# print out the character
-	incl	%edi		# increment the string pointer
-	jmp	prputstr.0	# jump to the start of the loop to continue
+	movb	(%edi),%al		# load the character pointed to by the string pointer into %al
+	testb	%al,%al			# test to see if the character in %al is zero
+	je	prputstr.1		# if the character is zero, we're done with the line and jump to the end of the subroutine
+
+	# if the character in %al is non-zero
+	call	prputchr		# call the prputchr subroutine to print the character onto the screen
+	incl	%edi			# increment the string pointer in %edi so we can access the next character within the string
+	jmp	prputstr.0		# jump to the start of the loop to continue printing the string
+
 prputstr.1:
 	# restore register values from the stack
 	popl	%edi
 	popl	%eax
-	ret			# exit subroutine
+	ret				# return from the subroutine
 
-# print a new line
+
+
+###
+# print a new line onto the screen
+# params: none
+# returns: none
 prputn:
-	# save regs
+	# save registers onto the stack
 	pushl	%eax
 prputn.0:
 	# print space
-	movl	$0x20,%eax
-	call	prputchr
-	# load current x
-	movl	$current_video_mem,%eax
-	movb	0x4(%eax),%al
-	# is it zero?
-	testb	%al,%al
-	# if yes, exit
-	jz	prputn.1
-	# loop
-	jmp	prputn.0
-prputn.1:
-	# restore regs
-	popl	%eax
-	ret
+	movl	$0x20,%eax		# load 0x20, which is the ASCII value for the space character, into %eax
+	call	prputchr		# call the prputchr subroutine to print the space character onto the screen
 
-# prints the character in %eax
+	# update the position of the cursor in the video memory structure
+	movl	$current_video_mem,%eax	# load the pointer to the video memory structure into %eax
+	movb	0x4(%eax),%al		# load the x position of the cursor, which is in the fourth index of the structure, into %al
+	testb	%al,%al			# test to see if the value of %al is zero
+	jz	prputn.1		# if the value of %al is zero, jump to the end of the subroutine
+	
+	# if the value of %al is non-zero
+	jmp	prputn.0		# jump to the beginning of the loop to print into the next character location
+prputn.1:
+	# restore the registers
+	popl	%eax
+	ret				# return from the subroutine
+
+
+
+###
+# prints a character onto the screen
+# params:
+# 	eax	the ASCII character value to be printed onto the screen
+# returns: none
 prputchr:
-	# save registers
+	# save the registers
 	pushl	%edi
 	pushl	%esi
 	pushl	%eax
-	# put the character into video memory
-	movl	$current_video_mem,%edi
-	movl	(%edi),%esi
-	movb	%al,(%esi)
-	movb	$0x7,0x1(%esi)
+
+	# load the character into video memory
+	movl	$current_video_mem,%edi	# load the pointer to the video memory struct into %edi
+	movl	(%edi),%esi		# load the zeroth index of the video memory structure into %esi
+					# this value is a pointer to the next space in video memory to print to
+	movb	%al,(%esi)		# write %al, the character value, into the current space in video memory
+	movb	$TEXT_ATTR,0x1(%esi)	# write the appropriate attribute bits into the character's attributes section within video memory
+
 	# increment the video memory pointer
-	addl	$0x2,%esi
-	movl	%esi,(%edi)
-	# increment x
-	xorl	%eax,%eax
-	movb	0x4(%edi),%al		# eax = current_video_mem.x
-	incl	%eax			# x++
-	movl	$0x50,%esi		# esi = 81
-	cmpl	%eax,%esi		# x == 81?
-	jne	prputchr.0
-	# if x == 81, x = 0, y++
-	xorl	%eax,%eax		# x = 0
-	movb	%al,0x4(%edi)		# save x
-	movb	0x5(%edi),%al		# al = y
-	incl	%eax			# y++
-	movb	%al,0x5(%edi)		# save y
-	jmp	prputchr.1
+	addl	$0x2,%esi		# increment %esi by two, which will result in %esi pointing to the next location in video memory
+	movl	%esi,(%edi)		# write the current pointer to video memory into the video memory structure's zeroth index
+
+	xorl	%eax,%eax		# zero out %eax by XORing itself
+	movb	0x4(%edi),%al		# write the current x position of the cursor into %al
+	incl	%eax			# increment the position of the cursos's x position within %eax
+	movl	$0x50,%esi		# set %esi to be 81, which is the cursor position just after the end of the screen
+	cmpl	%eax,%esi		# compare %eax to %esi to see if the cursor's next x position will be off the screen
+	jne	prputchr.0		# if the cursor will be moved to a valid location on the line, jump to prputchr.0 to finish the subroutine
+
+	# if the cursor would be moved off the edge of the screen
+	xorl	%eax,%eax		# set %eax to zero by XORing itself
+	movb	%al,0x4(%edi)		# write the new x location of the cursor into the video memory structure
+	movb	0x5(%edi),%al		# load the y location of the cursor from the video memory structure into %al
+	incl	%eax			# increment the y location of the cursor within %eax
+	movb	%al,0x5(%edi)		# write the new y location of the cursor into the video memory structure
+	jmp	prputchr.1		# jump to the end of the subroutine to return
+
+# if the cursor will remain on the same line
 prputchr.0:
-	# if x != 81, save x
-	movb	%al,0x4(%edi)
+	movb	%al,0x4(%edi)		# write the new x location of the cursor into the video memory structure
 prputchr.1:
 	# restore registers
 	popl	%eax
 	popl	%esi
 	popl	%edi
-	ret
+	ret				# return from the subroutine
 
-# some data!
+
+
+###
+# strings to use while enabling 64 bit mode
+
+# a string to be printed to the screen when 32 bit protected mode has been entered
 port_msg:
 	.ascii	"Welcome to 32 bit protected mode!"
 	.byte	0x0
 
+# an error string to be printed to the screen when the processor does not support CPUID
 no_cpuid_msg:
 	.ascii	"Your processor does not support CPUID extended"
 	.byte	0x0
 
+# an error string to be printed to the screen when the processor does not support 64 bit mode
 no_long_mode_msg:
 	.ascii	"Your processor does not support 64 bit mode"
 	.byte	0x0
 
+# a string to be printed to the screen when 64 bit mode is being enabled
 do_long_mode_msg:
 	.ascii	"Proceeding with 64 bit boot up"
 	.byte	0x0
 
+# a string to be printed to the screen when paging has been disabled
 pgng_off_msg:
 	.ascii	"Disabled paging"
 	.byte	0x0
 
+# a string to be printed to the screen when paging has been enabled
 pgng_on_msg:
 	.ascii	"Enabled paging"
 	.byte	0x0
 
+# a string to be printed to the screen when 64 bit compatibility mode has been enabled
 long_mode_comp_msg:
 	.ascii	"Welcome to 64 bit compatibility mode!"
 	.byte	0x0
 
+# a string to be printed to the screen when 64 bit mode has been fully enabled
 long_mode_full_msg:
 	.ascii	"Welcome to full 64 bit mode!"
 	.byte	0x0
 
+
+
+###
 # 64 bit target
 	.code64
 
+###
+# the main entry point for 64 bit mode
 main64:
-	mov	$long_mode_full_msg,%rax
-	call	prputstr64
-	jmp	.
+	mov	$long_mode_full_msg,%rax	# load the pointer to the long mode success message string into %rax
+	call	prputstr64			# call the prputstr64 subroutine to print the success message
+	jmp	.				# that's it. our os is done. that was fun. goodbye. oh, you're still here... umm... let's loop that again.
 
-# long mode printing stuff
 
-# print a string in long mode
+
+###
+# subroutines for printing to the screen while in long mode
+
+###
+# print a string to the screen while in long mode
 # params:
 #	rax	Pointer to the string
+# returns: none
 prputstr64:
 	# save register values to the stack
 	pushq	%rax
 	pushq	%rdi
-	mov	%rax,%rdi	# save the pointer in a pointer register
-	xorq	%rax,%rax	# perma-clear the upper 48 bits of %rax
+
+	mov	%rax,%rdi	# save the pointer to the string in %rax into the pointer register %rdi
+	xorq	%rax,%rax	# zero out the upper 48 bits of %rax
+				# we do this because when we are using just the lower bits, we don't want anything wihtin the upper bits
 prputstr64.0:
-	movb	(%rdi),%al	# load the character being pointed to
-	testb	%al,%al		# test the character for zero
-	je	prputstr64.1	# if the character is zero, we've reached the end
-				# of the string and can exit
-	call	prputchr	# print the character
-				# the 32 bit version seems to work in long mode
-	inc	%rdi		# increment the string pointer
-	jmp	prputstr64.0	# jump to the start of the loop to continue
+	movb	(%rdi),%al	# load the first character pointed to by %rdi
+	testb	%al,%al		# test the character to see if it is the null-character
+	je	prputstr64.1	# if the character value is zero, we've reached the end of the string, and can jump to prputstr64.1 to return from the subroutine
+
+	# if the character in %al is non-zero
+	call	prputchr	# call the prputchr subroutine to print the current character onto the screen
+				# NOTE: the 32 bit version of the subroutine seems to work in long mode, so we're going to re-use that
+	inc	%rdi		# increment the pointer to point to the next character in the string
+	jmp	prputstr64.0	# jump to the start of the loop to continue printing characters
+
 prputstr64.1:
 	# restore register values from the stack
 	popq	%rdi
 	popq	%rax
-	ret			# exit
-	
+	ret			# return from the subroutine
+
+
+
+###
+# the 64 bit global descriptor table
 gdt64:
 	# null entry
 	.word	0x0
@@ -607,6 +673,8 @@ gdt64:
 	.byte	0x20
 	.byte	0x0
 
+###
+# the 64 bit global descriptor table descriptor
 gdt64desc:
 	.word	GDT64_SZ-1
 	.quad	gdt64

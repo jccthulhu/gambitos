@@ -7,6 +7,7 @@
 
 // inclusions
 #include "process.h"
+#include "vm.h"
 
 // definitions
 
@@ -19,14 +20,21 @@
 void putstr( char * c );
 void putint( long v );
 void installSyscalls( long * syscallTable );
+// TODO: nix this for a better version
+pml4_table_t * get_pml4t();
 
 // system calls!
 void * allocate( long numPages );
 long deallocate( void * pagePointer );
+void * vm_map_page( void * pageStart );
 
 // user side system calls
 void * user_allocate( long numPages );
 long user_deallocate( void * pagePointer );
+void * user_vm_map_page( void * pageStart );
+
+// data definitions
+extern pml4_table_t * pml4t;
 
 // entry point
 
@@ -44,6 +52,15 @@ void start()
 	// start the scheduler, round robin style
 	// just hang out until the scheduler fires
 
+	// BEGIN DEBUG
+	//pml4t = get_pml4t();
+	// END DEBUG
+
+	char * vidMem = (char*)vm_map_page( (long)0xb8000 );
+	//putint( (long)vidMem );
+	//vidMem[0] = '?';
+	//vidMem[1] = 0x70;
+
 	for (;;)
 	{
 		// as my old comp sci teacher once said:
@@ -58,6 +75,8 @@ void start()
 // data members
 
 char * currentVideo = VIDEO_MEM;
+pml4_table_t * pml4t = 0;
+unsigned long pageCounter = 511;
 
 // routine definitions
 
@@ -129,6 +148,7 @@ void installSyscalls( long * syscallTable )
 	// function body
 	syscallTable[ 0x10 ] = allocate;
 	syscallTable[ 0x11 ] = deallocate;
+	syscallTable[ 0x12 ] = vm_map_page;
 	
 	// clean up
 	return;
@@ -147,4 +167,30 @@ long deallocate( void * pagePointer )
 	return -1;
 }
 
+void * vm_allocate_page()
+{
+	// variables
+
+	// function body
+
+	// clean up
+	return 0;
+}
+
+void * vm_map_page( void * pageStart )
+{
+	// variables
+	void * virtualPointer;
+
+	// function body
+	// TODO
+	// pointer must be page aligned
+	if ( 0 != ( (long)pageStart & 0xfff ) )
+	{
+		return 0;
+	}
+	// TODO: check permissions
+	// clean up
+	return virtualPointer;
+}
 

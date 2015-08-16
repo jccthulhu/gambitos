@@ -24,9 +24,7 @@ void installSyscalls( long * syscallTable );
 pml4_table_t * get_pml4t();
 
 // system calls!
-void * allocate( long numPages );
 long deallocate( void * pagePointer );
-void * vm_map_page( void * pageStart );
 
 // user side system calls
 void * user_allocate( long numPages );
@@ -146,19 +144,12 @@ void installSyscalls( long * syscallTable )
 	// variables
 	
 	// function body
-	syscallTable[ 0x10 ] = allocate;
+	syscallTable[ 0x10 ] = vm_allocate_page;
 	syscallTable[ 0x11 ] = deallocate;
 	syscallTable[ 0x12 ] = vm_map_page;
 	
 	// clean up
 	return;
-}
-
-
-void * allocate( long numPages )
-{
-	// TODO
-	return 0;
 }
 
 long deallocate( void * pagePointer )
@@ -172,6 +163,7 @@ void * vm_allocate_page()
 	// variables
 
 	// function body
+	// TODO
 
 	// clean up
 	return 0;

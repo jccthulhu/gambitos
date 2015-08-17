@@ -97,6 +97,23 @@ start.2:
 	jmp	.
 
 
+# prints a string to the screen in 16 bit mode
+# params:
+#      ax      the pointer to the string
+putstr:
+       # save register values to the stack
+       mov     %ax,%di         # save the pointer
+putstr.0:
+       mov     (%di),%al
+       testb   %al,%al
+       je      putstr.1
+       call    putchr
+       inc     %di
+       jmp     putstr.0
+putstr.1:
+       # restore register values from the stack
+       retw                    # return from subroutine
+
 ###
 # utilities
 
@@ -356,7 +373,7 @@ prputstr64.0:
 	je	prputstr64.1	# if the character value is zero, we've reached the end of the string, and can jump to prputstr64.1 to return from the subroutine
 
 	# if the character in %al is non-zero
-	call	prputchr	# call the prputchr subroutine to print the current character onto the screen
+	call	prputchr64	# call the prputchr subroutine to print the current character onto the screen
 				# NOTE: the 32 bit version of the subroutine seems to work in long mode, so we're going to re-use that
 	inc	%rdi		# increment the pointer to point to the next character in the string
 	jmp	prputstr64.0	# jump to the start of the loop to continue printing characters

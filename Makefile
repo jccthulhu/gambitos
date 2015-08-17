@@ -1,8 +1,24 @@
-AS=/Users/jcc/gnu/bin/x86_64-unknown-elf-as
-LD=/Users/jcc/gnu/bin/x86_64-unknown-elf-ld
+# the executable names of the desired as and ld commands
+AS_CMD=x86_64-unknown-elf-as
+LD_CMD=x86_64-unknown-elf-ld
+
+# set AS and LD to the executable for the as and ld commands
+ifneq ($(strip ${GNU_x86_64_UNKNOWN_ELF_PATH}),)
+# if $GNU_x86_64_UNKNOWN_ELF_PATH is defined in the environment, use it
+AS=${GNU_x86_64_UNKNOWN_ELF_PATH}/${AS_CMD}
+LD=${GNU_x86_64_UNKNOWN_ELF_PATH}/${LD_CMD}
+else
+# if there is no path defined, rely on the user's path to find the executables
+AS=${AS_CMD}
+LD=${LD_CMD}
+endif
+
 CC=clang
 
 all:	create_bin
+
+run-qemu:	all
+	qemu-system-x86_64 -hda boot.img
 
 create_bin:	buildboot1 buildboot2 buildboot3 buildparttbl
 	hdiutil create -megabytes 64 -fs MS-DOS -fsargs "-F 32" -volname FAT32 -o boot.dmg

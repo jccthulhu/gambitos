@@ -12,6 +12,9 @@
 	.set DATA_SEL,0x10	# the index for the data segment in the GDT
 	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
 	.set VIDEO_BASE,0xb8000	# the memory location for the origin of video memory, used for printing to the screen
+
+	.set MEM_META,0x500     # the start of memory containing information about memory
+
 				# this is the start of a 25 by 80 character block of memory, which is written to the screen 60 times each second
 
 	# the memory locations of the page tables used for virtualization in protected long (64 bit) mode
@@ -44,6 +47,11 @@ start:
 	movw	%ax,%ds		# write %ax (0) to %ds, the data segment register
 	movw	%ax,%ss		# write %ax (0) to %ss, the stack segment register
 	movw	$STACK_TOP,%sp	# set %sp, the stack pointer register, to the stack origin
+
+	# get the memory setup
+	movw	$MEM_META,%di
+	calll	getmem
+	pushl	%eax
 
 	# enable more than 1MB of memory, more than anyone would ever need
 	callw	seta20		# call the 'seta20' subroutine to the A20 line, which will stop the automatic wrapping of memory addresses past 1MB
@@ -78,6 +86,8 @@ start:
 	call	enable_lm		# call the subroutine to finally enable long mode
 	call	enable_paging		# call the subroutine to enable paging
 
+	popl	%ebx
+
 	ljmp	$CODE_SEL,$main64	# jump to the 32 bit entry point
 
 start.0:
@@ -95,6 +105,47 @@ start.2:
 	# TODO: Either load a more shitty version of the kernel,
 	# or just explode
 	jmp	.
+
+# subroutine to detect memory
+# params:
+#	di	pointer to keep the list of memory regions
+# returns:
+#	eax	the number of memory regions described
+getmem:
+	# save register values to the stack	
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebx
+	pushl	%ecx
+	pushl	%edx
+	xorl	%esi,%esi	# clear counter
+	# set up the first call to the BIOS routine
+	xorl	%ebx,%ebx
+	movl	$0x534d4150,%edx
+	movl	$0xe820,%eax
+	movl	$0x18,%ecx
+getmem.0:
+	int	$0x15			# make the call to the BIOS routine
+	incl	%esi			# increment counter
+	jc	getmem.1		# check for carry
+	testl	%ebx,%ebx		# check for ebx = 0
+	jz	getmem.1
+	# set up the next call to the BIOS routine
+	addw	$0x14,%di
+	movl	$0xe820,%eax
+	movl	$0x14,%ecx
+	movl	$0x534d4150,%edx
+	# jump to the start of the loop to continue
+	jmp	getmem.0
+getmem.1:
+	movl	%esi,%eax
+	# restore register values from the stack
+	popl	%edx
+	popl	%ecx
+	popl	%ebx
+	popl	%esi
+	popl	%edi
+	retl	# return from this subroutine
 
 
 # prints a string to the screen in 16 bit mode
@@ -310,6 +361,12 @@ main64:
 	movw	%ax,%gs
 	
 	mov	$STACK_TOP,%rsp			# reset the stack
+
+	movq	$MEM_META,%rdi
+	xorq	%rax,%rax	
+	movl	%ebx,%eax
+	callq	dumpmem64
+	jmp	.
 	
 	# set up the long mode TSS
 	call	createtss64
@@ -336,6 +393,51 @@ main64:
 main64.0:
 	mov	$NEXT_SEG,%rax
 	jmp	*%rax
+
+###
+# dumps the memory metadata
+# params:
+#	rdi	pointer to the memory metadata
+#	rax	the number of entries
+# returns: none
+dumpmem64:
+	# save register values onto the stack
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rbx
+	movq	%rax,%rcx		# for each entry
+	movq	%rdi,%rbx
+dumpmem64.0:
+	movq	$type_table,%rsi
+	# print the base address
+	movq	0x0(%rbx),%rdi
+	callq	prputint64
+	movq	$0x2c,%rax
+	callq	prputchr64
+	# print the length of the region
+	movq	0x8(%rbx),%rdi
+	callq	prputint64
+	movq	$0x2c,%rax
+	callq	prputchr64
+	# print the region type
+	xorq	%rax,%rax
+	movl	0x10(%rbx),%eax
+	movq	(%rsi,%rax,0x8),%rax
+	callq	prputstr64
+	movq	$0x2c,%rax
+	callq	prputchr64
+
+	addq	$0x14,%rbx	# increment the table pointer
+	loop	dumpmem64.0	# jump to the start of the loop to continue
+	# restore register values from the stack
+	popq	%rbx
+	popq	%rcx
+	popq	%rax
+	popq	%rsi
+	popq	%rdi
+	retq	# return from this subroutine
 
 ###
 # build the long mode TSS
@@ -1048,4 +1150,36 @@ idtmap:
 	.quad	isr_46
 	.quad	isr_47
 	.quad	isr_48
+
+
+# types of memory regions
+usable_type:
+	.ascii	"Usable Memory"
+	.byte	0x0
+
+reserved_type:
+	.ascii	"Reserved Memory"
+	.byte	0x0
+
+reclaimable_type:
+	.ascii	"Reclaimable Memory"
+	.byte	0x0
+
+nvs_type:
+	.ascii	"NVS Memory"
+	.byte	0x0
+
+bad_type:
+	.ascii	"Bad Memory"
+	.byte	0x0
+
+type_table:
+	.quad	0x0		# makes jumping easier
+	.quad	usable_type
+	.quad	reserved_type
+	.quad	reclaimable_type
+	.quad	nvs_type
+	.quad	bad_type
+
+
 

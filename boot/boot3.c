@@ -94,25 +94,12 @@ void putstr(char *string)
 	}
 }
 
-
-
-//////
-/// Bootloader Stage 3 Entry Point and Execution
-
-/// start
-/// the entry point into our C code from stage 2 of the bootloader
-/// from here, we can finish up the bootloading sequence and continue on to initialize the kernel
-void start()
-{
-	putstr("Welcome to some C code!");
-
-	form_page_lists( (meta_mem_t*)META_MEM );
-
-	// as my old comp sci teacher once said:
-	// "operating systems are easy; if nothing happens, do nothing"
-	for (;;) { asm( "hlt" ); }
-}
-
+/// k_malloc
+/// allocate a block of memory explicitly for use by the kernel
+/// params:
+///	blockSize - the number of bytes to allocate
+/// returns:
+///	a pointer to some 'fresh' memory
 void * k_malloc( long blockSize )
 {
 	// variables
@@ -130,6 +117,12 @@ void * k_malloc( long blockSize )
 	return current;
 }
 
+/// form_page_lists
+/// create free list of pages
+/// params:
+///	mem - a pointer to the list of memory section data
+/// returns:
+///	none
 void form_page_lists( meta_mem_t * mem )
 {
 	// variables
@@ -171,5 +164,22 @@ void form_page_lists( meta_mem_t * mem )
 
 	// clean up
 	return;
+}
+
+//////
+/// Bootloader Stage 3 Entry Point and Execution
+
+/// start
+/// the entry point into our C code from stage 2 of the bootloader
+/// from here, we can finish up the bootloading sequence and continue on to initialize the kernel
+void start()
+{
+	putstr("Welcome to some C code!");
+
+	form_page_lists( (meta_mem_t*)META_MEM );
+
+	// as my old comp sci teacher once said:
+	// "operating systems are easy; if nothing happens, do nothing"
+	for (;;) { asm( "hlt" ); }
 }
 

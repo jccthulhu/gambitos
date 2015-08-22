@@ -15,37 +15,45 @@ endif
 
 CC=clang
 
+BUILD_DIR=build/
+
 all:	create_bin
 
-run-qemu:	all
-	qemu-system-x86_64 -hda boot.img
+run-qemu: all
+	qemu-system-x86_64 -hda ${BUILD_DIR}boot.img
 
-create_bin:	buildboot1 buildboot2 buildboot3 buildparttbl
-	hdiutil create -megabytes 64 -fs MS-DOS -fsargs "-F 32" -volname FAT32 -o boot.dmg
-	dd if=boot1 of=boot.dmg conv=notrunc
-	dd if=parttbl of=boot.dmg conv=notrunc seek=1 count=1 bs=512
-	dd if=boot2 of=boot.dmg conv=notrunc seek=2 count=8 bs=512
-	dd if=boot3 of=boot.dmg conv=notrunc seek=10 count=8 bs=512
-	mv boot.dmg boot.img
+build_dir:
+	mkdir -p build
 
-buildparttbl:
+write_boot: build_dir
+	$(CC) write_boot.c -o ${BUILD_DIR}write_boot
+
+create_bin: buildboot1 buildboot2 buildboot3 buildparttbl build_dir
+	hdiutil create -megabytes 64 -fs MS-DOS -fsargs "-F 32" -volname FAT32 -o ${BUILD_DIR}boot.dmg
+	dd if=${BUILD_DIR}boot1 of=${BUILD_DIR}boot.dmg conv=notrunc
+	dd if=${BUILD_DIR}parttbl of=${BUILD_DIR}boot.dmg conv=notrunc seek=1 count=1 bs=512
+	dd if=${BUILD_DIR}boot2 of=${BUILD_DIR}boot.dmg conv=notrunc seek=2 count=8 bs=512
+	dd if=${BUILD_DIR}boot3 of=${BUILD_DIR}boot.dmg conv=notrunc seek=10 count=8 bs=512
+	mv ${BUILD_DIR}boot.dmg ${BUILD_DIR}boot.img
+
+buildparttbl: write_boot build_dir
 	# it's going to be EXACTLY 1 sector
-	touch parttbl
-	dd if=/dev/zero of=parttbl count=1 bs=512
-	./write_boot parttbl_tmp
-	dd if=parttbl_tmp of=parttbl conv=notrunc
+	touch ${BUILD_DIR}parttbl
+	dd if=/dev/zero of=${BUILD_DIR}parttbl count=1 bs=512
+	./${BUILD_DIR}write_boot ${BUILD_DIR}parttbl_tmp
+	dd if=${BUILD_DIR}parttbl_tmp of=${BUILD_DIR}parttbl conv=notrunc
 
-buildboot1:
-	$(AS) boot/boot1.s -o boot1.o
-	$(LD) -o boot1 -Ttext 0x600 -e start -S -N --oformat binary boot1.o
+buildboot1: build_dir
+	$(AS) boot/boot1.s -o ${BUILD_DIR}boot1.o
+	$(LD) -o ${BUILD_DIR}boot1 -Ttext 0x600 -e start -S -N --oformat binary ${BUILD_DIR}boot1.o
 
-buildboot2:
-	$(AS) boot/boot2.s -o boot2.o
-	$(LD) -o boot2 -Ttext 0x7c00 -e start -S -N --oformat binary boot2.o
+buildboot2: build_dir
+	$(AS) boot/boot2.s -o ${BUILD_DIR}boot2.o
+	$(LD) -o ${BUILD_DIR}boot2 -Ttext 0x7c00 -e start -S -N --oformat binary ${BUILD_DIR}boot2.o
 
-buildboot3:
-	$(CC) -Iinclude -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o boot3.o
-	$(LD) -o boot3 -Ttext 0x8c00 -e start -S -N --oformat binary boot3.o
+buildboot3: build_dir
+	$(CC) -Iinclude -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o ${BUILD_DIR}boot3.o
+	$(LD) -o ${BUILD_DIR}boot3 -Ttext 0x8c00 -e start -S -N --oformat binary ${BUILD_DIR}boot3.o
 
 clean:
-	rm -f boot1 boot1.o boot2 boot2.o boot3 boot3.o boot.dmg boot.img parttbl
+	rm -Rf ${BUILD_DIR}

@@ -13,8 +13,11 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
+#define	PANIC()		putstr( "Woops." ); for (;;) {}
+
 void putstr( char * c );
-void dumpmem( meta_mem_t * mem );
+void * k_malloc( long blockSize );
+void form_page_lists( meta_mem_t * mem );
 
 // entry point
 
@@ -24,7 +27,7 @@ void start()
 	// function body
 	putstr( "Welcome to some C code!" );
 
-	dumpmem( (meta_mem_t*)META_MEM );
+	form_page_lists( (meta_mem_t*)META_MEM );
 
 	for (;;)
 	{
@@ -40,6 +43,9 @@ void start()
 // data members
 
 char * currentVideo = VIDEO_MEM;
+physical_page_t * freeList = 0;
+physical_page_t * nonFreeList = 0;
+unsigned char * heap = KERNEL_HEAP_START;
 
 // routine definitions
 
@@ -73,33 +79,63 @@ void putstr( char * c )
 	// clean up
 }
 
-void dumpmem( meta_mem_t * mem )
+void * k_malloc( long blockSize )
 {
 	// variables
+	unsigned char * current;
 
 	// function body
-	for ( int i = 0; mem[i].type; i++ )
+	current = heap;
+	heap = heap + blockSize;
+	if ( (long)heap > KERNEL_HEAP_END )
 	{
-		switch( mem[i].type )
-		{
-			case 1:
-				putstr( "Usable;" );
-				break;
-			case 2:
-				putstr( "Reserved;" );
-				break;
-			case 3:
-				putstr( "Reclaimable;" );
-				break;
-			case 4:
-				putstr( "NVS;" );
-				break;
-			case 5:
-				putstr( "Bad Memory;" );
-				break;
-		};
+		PANIC();
 	}
 
 	// clean up
+	return current;
+}
+
+void form_page_lists( meta_mem_t * mem )
+{
+	// variables
+	physical_page_t * current;
+
+	// function body
+	for ( unsigned long i = 0; mem[i].type; i++ )
+	{
+		// we can only allocate out of free blocks
+		if ( FREE_MEM_TYPE == mem[i].type )
+		{
+			unsigned long base = mem[i].base;
+			// we can only allocate out of non-kernel space
+			base = base >= KERNEL_HEAP_END ? base : KERNEL_HEAP_END;
+			// we can only go off of clean page boundaries
+			base = 0 == ( base % PAGE_SIZE ) ? base : base + PAGE_SIZE - ( base % PAGE_SIZE );
+			unsigned long end = mem[i].base + mem[i].length;
+			// we can only go off of etc. etc.
+			end = 0 == ( end % PAGE_SIZE ) ? end : end - ( end % PAGE_SIZE );
+			// chunk must have more than zero bytes
+			end = end > base ? end : base;
+			// ok, now we can split it into pages
+			for ( unsigned long j = 0; j < (( end - base ) / PAGE_SIZE); j++ )
+			{
+				if ( 0 == freeList )
+				{
+					freeList = k_malloc( sizeof(physical_page_t) );
+					current = freeList;
+				}
+				else
+				{
+					current->next = k_malloc( sizeof(physical_page_t) );
+					current = current->next;
+				}
+				current->pagePointer = base + j * PAGE_SIZE;
+			}
+		}
+	}
+
+	// clean up
+	return;
 }
 

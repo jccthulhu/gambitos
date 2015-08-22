@@ -138,6 +138,13 @@ getmem.0:
 	# jump to the start of the loop to continue
 	jmp	getmem.0
 getmem.1:
+	# write a blank entry
+	addw	$0x14,%di
+	movl	$0x0,(%di)
+	movl	$0x0,0x4(%di)
+	movl	$0x0,0x8(%di)
+	movl	$0x0,0xc(%di)
+	movl	$0x0,0x10(%di)
 	movl	%esi,%eax
 	# restore register values from the stack
 	popl	%edx

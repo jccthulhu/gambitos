@@ -44,7 +44,7 @@ buildboot2:
 	$(LD) -o boot2 -Ttext 0x7c00 -e start -S -N --oformat binary boot2.o
 
 buildboot3:
-	$(CC) -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o boot3.o
+	$(CC) -Iinclude -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o boot3.o
 	$(LD) -o boot3 -Ttext 0x8c00 -e start -S -N --oformat binary boot3.o
 
 clean:

@@ -372,8 +372,6 @@ main64:
 	movq	$MEM_META,%rdi
 	xorq	%rax,%rax	
 	movl	%ebx,%eax
-	callq	dumpmem64
-	jmp	.
 	
 	# set up the long mode TSS
 	call	createtss64
@@ -400,51 +398,6 @@ main64:
 main64.0:
 	mov	$NEXT_SEG,%rax
 	jmp	*%rax
-
-###
-# dumps the memory metadata
-# params:
-#	rdi	pointer to the memory metadata
-#	rax	the number of entries
-# returns: none
-dumpmem64:
-	# save register values onto the stack
-	pushq	%rdi
-	pushq	%rsi
-	pushq	%rax
-	pushq	%rcx
-	pushq	%rbx
-	movq	%rax,%rcx		# for each entry
-	movq	%rdi,%rbx
-dumpmem64.0:
-	movq	$type_table,%rsi
-	# print the base address
-	movq	0x0(%rbx),%rdi
-	callq	prputint64
-	movq	$0x2c,%rax
-	callq	prputchr64
-	# print the length of the region
-	movq	0x8(%rbx),%rdi
-	callq	prputint64
-	movq	$0x2c,%rax
-	callq	prputchr64
-	# print the region type
-	xorq	%rax,%rax
-	movl	0x10(%rbx),%eax
-	movq	(%rsi,%rax,0x8),%rax
-	callq	prputstr64
-	movq	$0x2c,%rax
-	callq	prputchr64
-
-	addq	$0x14,%rbx	# increment the table pointer
-	loop	dumpmem64.0	# jump to the start of the loop to continue
-	# restore register values from the stack
-	popq	%rbx
-	popq	%rcx
-	popq	%rax
-	popq	%rsi
-	popq	%rdi
-	retq	# return from this subroutine
 
 ###
 # build the long mode TSS
@@ -1038,9 +991,9 @@ keyboard_handler:
 	xor	%rax,%rax
 	inb	$0x60,%al
 	mov	%rax,%rdi
-	call	prputint64
+	#call	prputint64
 	mov	$0x2c,%rax
-	call	prputchr64
+	#call	prputchr64
 keyboard_handler.0:
 	# restore register values
 	popq	%rsi

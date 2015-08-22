@@ -4,12 +4,17 @@
  *	"Third" stage bootloader; gets loaded with the second stage, but is the first C code we can use in the boot process
  **/
 
+// inclusions
+#include "vm.h"
+
 // definitions
 
 #define	VIDEO_MEM	0xb8000
 #define	VIDEO_MEM_SIZE	0xfa0
+#define	META_MEM	0x500
 
 void putstr( char * c );
+void dumpmem( meta_mem_t * mem );
 
 // entry point
 
@@ -18,6 +23,8 @@ void start()
 	// variables
 	// function body
 	putstr( "Welcome to some C code!" );
+
+	dumpmem( (meta_mem_t*)META_MEM );
 
 	for (;;)
 	{
@@ -65,3 +72,34 @@ void putstr( char * c )
 
 	// clean up
 }
+
+void dumpmem( meta_mem_t * mem )
+{
+	// variables
+
+	// function body
+	for ( int i = 0; mem[i].type; i++ )
+	{
+		switch( mem[i].type )
+		{
+			case 1:
+				putstr( "Usable;" );
+				break;
+			case 2:
+				putstr( "Reserved;" );
+				break;
+			case 3:
+				putstr( "Reclaimable;" );
+				break;
+			case 4:
+				putstr( "NVS;" );
+				break;
+			case 5:
+				putstr( "Bad Memory;" );
+				break;
+		};
+	}
+
+	// clean up
+}
+

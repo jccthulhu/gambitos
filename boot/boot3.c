@@ -155,12 +155,76 @@ void form_page_lists( meta_mem_t * mem )
 					current = current->next;
 				}
 				current->pagePointer = base + j * PAGE_SIZE;
+				current->next = 0;
 			}
 		}
 	}
 
 	// clean up
 	return;
+}
+
+/// vm_get_physical_page
+/// a private function that gets the next available physical page from memory
+/// params:
+///	none
+/// returns:
+///	a pointer to the beginning of the physical page
+void * vm_get_physical_page()
+{
+	// variables
+	physical_page_t * page;
+
+	// function body
+	page = freeList;
+	if ( 0 != freeList )
+	{
+		freeList = freeList->next;
+	}
+
+	// clean up
+	return page;
+}
+
+/// vm_map_page
+/// allocate a virtual page and map it to the specified physical page
+/// params:
+///	page - a pointer to the beginning of the physical page
+/// returns:
+///	a pointer to the beginning of the virtual page
+void * vm_map_page( void * page )
+{
+	// variables
+
+	// function body
+
+	// clean up
+	return 0;
+}
+
+/// vm_alloc_page
+/// allocate a page of memory
+/// params:
+///	none
+/// returns:
+///	a pointer to the beginning of the virtual page
+void * vm_alloc_page()
+{
+	// variables
+	void * virtualPage;
+	void * physicalPage;
+
+	// function body 
+	// try to get a physical page
+	// if we could not get a physical page
+		// get the most evictable virtual page
+		// get its physical pointer
+		// evict the virtual page
+	// map the physical page into virtual memory
+	virtualPage = vm_map_page( physicalPage );
+
+	// clean up
+	return virtualPage;
 }
 
 //////

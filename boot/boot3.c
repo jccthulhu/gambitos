@@ -15,9 +15,6 @@
 
 #define	PANIC()		putstr( "Woops." ); for (;;) {}
 
-void putstr( char * c );
-void * k_malloc( long blockSize );
-void form_page_lists( meta_mem_t * mem );
 #pragma pack(0)
 
 

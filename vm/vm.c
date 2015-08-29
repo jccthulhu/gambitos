@@ -232,24 +232,56 @@ void * vm_map_page( void * page )
 		if ( PDT_FULL(currentPdTable ) )
 		{
 			// get the current pdpt
+			long * currentPdpTable = vm_get_pdpt();
 			// if there is no space left in the pdpt
+			if ( PDPT_FULL(currentPdpTable) )
+			{
 				// get the current pml4t
+				long * currentPml4Table = vm_get_pml4t();
 				// if there is no space left in the pml4t
+				if ( PML4T_FULL(currentPml4Table) )
+				{
 					// panic
+					PANIC("Ran out of virtual address space");
+				}
 				// allocate a page for a new pdpt
+				long * physicalPdpTable = vm_get_physical_page();
+				if ( 0 == physicalPdpTable )
+				{
+					PANIC("Ran out of space for pdp tables");
+				}
 				// mark all of its attributes appropriately
+				long pdpTable = (long)physicalPdpTable;
+				pdpTable = pdpTable | PG_PRESENT | PG_READWRITE;
 				// clear the physical page
+				for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+				{
+					physicalPdpTable[i] = 0;
+				}
 				// add the new pdpt to the current pml4t
+			}
 			// allocate a page for a new pdt
+			long * physicalPdTable = vm_get_physical_page();
+			if ( 0 == physicalPdTable )
+			{
+				PANIC("Ran out of space for pd tables");
+			}
 			// mark all of its attributes appropriately
+			long pdTable = (long)physicalPdTable;
+			pdTable = pdTable | PG_PRESENT | PG_READWRITE;
 			// clear the physical page
+			for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+			{
+				physicalPdTable[i] = 0;
+			}
 			// add the new pdt to the pdpt
+			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
 		long * physicalPageTable = vm_get_physical_page();
 		if ( 0 == physicalPageTable )
 		{
-			PANIC("Ran out of space for pd tables");
+			PANIC("Ran out of space for page tables");
 		}
 		// mark all of its attributes appropriately
 		long pTable = (long)physicalPageTable;
@@ -260,7 +292,8 @@ void * vm_map_page( void * page )
 			physicalPageTable[i] = 0;
 		}
 		// add the new page table to the current pdt
-
+		PDT_ADD(currentPdTable,pTable);
+		currentPageTable = physicalPageTable;
 	}
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;

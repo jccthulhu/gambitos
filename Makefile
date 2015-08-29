@@ -53,7 +53,8 @@ buildboot2: build_dir
 
 buildboot3: build_dir
 	$(CC) -Iinclude -target x86_64-unknown-elf -nostartfiles -c boot/boot3.c -o ${BUILD_DIR}boot3.o
-	$(LD) -o ${BUILD_DIR}boot3 -Ttext 0x8c00 -e start -S -N --oformat binary ${BUILD_DIR}boot3.o
+	$(CC) -Iinclude -target x86_64-unknown-elf -nostartfiles -c vm/vm.c -o ${BUILD_DIR}vm.o
+	$(LD) -o ${BUILD_DIR}boot3 -Ttext 0x8c00 -e start -S -N --oformat binary ${BUILD_DIR}boot3.o ${BUILD_DIR}vm.o
 
 clean:
 	rm -Rf ${BUILD_DIR}

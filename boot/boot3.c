@@ -14,7 +14,6 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-
 #pragma pack(0)
 
 //////

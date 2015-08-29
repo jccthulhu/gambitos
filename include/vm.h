@@ -65,8 +65,9 @@ typedef struct physical_page_str
 	struct physical_page_str * next;
 } physical_page_t;
 
-// function declarations
+// publicly visible function declarations
 
+void vm_init();
 void * vm_allocate_page();
 void * vm_map_page( void * pageStart );
 

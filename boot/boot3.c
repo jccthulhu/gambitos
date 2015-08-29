@@ -13,10 +13,9 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	PANIC()		putstr( "Woops." ); for (;;) {}
+#define	PANIC(x)	putstr( "Woops." ); putstr(x); for (;;) {}
 
 #pragma pack(0)
-
 
 //////
 /// Data Structures and Constant Values
@@ -44,10 +43,9 @@ static const unsigned int video_memory_size = (0xfa0 * sizeof(char)) / sizeof(st
 physical_page_t * freeList = 0;
 physical_page_t * nonFreeList = 0;
 unsigned char * heap = KERNEL_HEAP_START;
+long * currentVPointer = KERNEL_HEAP_END;
 /// the empty character that represents the termination of a string
 static const char null_character = '\0';
-
-
 
 //////
 /// Utility Functions
@@ -107,7 +105,7 @@ void * k_malloc( long blockSize )
 	heap = heap + blockSize;
 	if ( (long)heap > KERNEL_HEAP_END )
 	{
-		PANIC();
+		PANIC("Ran out of kernel heap.");
 	}
 
 	// clean up
@@ -186,6 +184,96 @@ void * vm_get_physical_page()
 	return page;
 }
 
+/// vm_get_pml4t
+/// get the current pml4 table
+/// params:
+///	none
+/// returns:
+///	the pointer to the current pml4t
+void * vm_get_pml4t()
+{
+	void * pml4t;
+	asm( "movq %%cr0,%0"
+		: "=r"(pml4t) );
+	return pml4t;
+}
+
+/// vm_get_pdpt
+/// get the current pdp table
+/// params:
+///	none
+/// returns:
+/// 	the pointer to the current pdp table
+void * vm_get_pdpt()
+{
+	long * pml4Table;
+
+	pml4Table = (long*)vm_get_pml4t();
+	for ( int i = PML4_TABLE_SIZE - 1; i >= 0; i-- )
+	{
+		if ( 0 != pml4Table[i] )
+		{
+			return (void*)(pml4Table[i]);
+		}
+	}
+
+	// no current pdpt? confusing thought, really
+	// implies a pml4 table with no entries; not really possible
+	// therefore, panic
+	PANIC("PML4 table is empty");
+	return 0;
+}
+
+/// vm_get_pdt
+/// get the current pd table
+/// params:
+///	none
+/// returns:
+///	the pointer to the current pd table
+void * vm_get_pdt()
+{
+	long * pdpTable;
+
+	pdpTable = (long*)vm_get_pdpt();
+	for ( int i = PDP_TABLE_SIZE - 1; i >= 0; i-- )
+	{
+		if ( 0 != pdpTable[i] )
+		{
+			return (void*)(pdpTable[i]);
+		}
+	}
+
+	// current pdt is not in the current pdpt
+	// implies that the current pdpt is "fresh"
+	PANIC("vm_get_pdt implementation is incomplete");
+
+	return 0;
+}
+
+/// vm_get_pt
+/// get the current page table
+/// params:
+///	none
+/// returns:
+///	the pointer to the current page table
+void * vm_get_pt()
+{
+	long * pdTable;
+
+	pdTable = (long*)vm_get_pdt();
+	for ( int i = PD_TABLE_SIZE - 1; i >= 0; i-- )
+	{
+		if ( 0 != pdTable[i] )
+		{
+			return (void*)(pdTable[i]);
+		}
+	}
+
+	PANIC("vm_get_pt implementation is incomplete");
+
+	return 0;
+}
+
 /// vm_map_page
 /// allocate a virtual page and map it to the specified physical page
 /// params:
@@ -197,9 +285,56 @@ void * vm_map_page( void * page )
 	// variables
 
 	// function body
+	// get the current page table
+	long * currentPageTable = vm_get_pt();
+	// if there is no space left in the page table
+	if ( PT_FULL(currentPageTable) )
+	{
+		// get the current pdt
+		long * currentPdTable = vm_get_pdt();
+		// if there is no space left in the pdt
+		if ( PDT_FULL(currentPdTable ) )
+		{
+			// get the current pdpt
+			// if there is no space left in the pdpt
+				// get the current pml4t
+				// if there is no space left in the pml4t
+					// panic
+				// allocate a page for a new pdpt
+				// mark all of its attributes appropriately
+				// clear the physical page
+				// add the new pdpt to the current pml4t
+			// allocate a page for a new pdt
+			// mark all of its attributes appropriately
+			// clear the physical page
+			// add the new pdt to the pdpt
+		}
+		// allocate a page for the new page table
+		long * physicalPageTable = vm_get_physical_page();
+		if ( 0 == physicalPageTable )
+		{
+			PANIC("Ran out of space for pd tables");
+		}
+		// mark all of its attributes appropriately
+		long pTable = (long)physicalPageTable;
+		pTable = pTable | PG_PRESENT | PG_READWRITE;
+		// clear the physical page
+		for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+		{
+			physicalPageTable[i] = 0;
+		}
+		// add the new page table to the current pdt
+
+	}
+	// mark the physical page's attributes appropriately
+	long pgLong = (long)page;
+	pgLong = pgLong | PG_PRESENT | PG_READWRITE | PG_USER;
+	// add the physical page to the current page table
+	PT_ADD(currentPageTable,pgLong);
+	// calculate the new virtual pointer
 
 	// clean up
-	return 0;
+	return CURRENT_V_POINTER();
 }
 
 /// vm_alloc_page

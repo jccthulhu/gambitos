@@ -36,6 +36,7 @@ void start()
 	// END DEBUG
 
 	vm_init( (meta_mem_t*)META_MEM );
+	exc_init( (virtual_interrupt_table)VIDT );
 
 	// test memory allocation
 	long * p = vm_allocate_page();

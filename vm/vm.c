@@ -272,6 +272,8 @@ void * vm_map_page( void * page )
 			{
 				PANIC("Ran out of space for pd tables");
 			}
+			physicalPdTable->next = memList;
+			memList = physicalPdTable;
 			// clear the physical page
 			long pdTable = (long)physicalPdTable;
 			for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
@@ -290,6 +292,8 @@ void * vm_map_page( void * page )
 		{
 			PANIC("Ran out of space for page tables");
 		}
+		physicalPageTable->next = memList;
+		memList = physicalPageTable;
 		// clear the physical page
 		long pTable = physicalPageTable->pagePointer;
 		for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )

@@ -34,8 +34,9 @@
 
 #define	PT_ADD(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
 				if ( 0 == x[i] ) {\
-					x[i] = (y); break;\
-					currentVPointer = currentVPointer + 0x1000;\
+					x[i] = (y);\
+					currentVPointer = currentVPointer + 0x200;\
+					break;\
 				} }\
 			}
 #define	PDT_ADD(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
@@ -47,7 +48,7 @@
 					if ( 0 == x[i+1] ) { x[i] = y; }\
 				}\
 			}
-#define	CURRENT_V_POINTER()	(currentVPointer)
+#define	CURRENT_V_POINTER()	(currentVPointer - 0x200)
 
 #define	NEXT_FREE_PAGE()	((0 == freeList) ? freeList : freeList->next)
 
@@ -78,6 +79,6 @@ void * vm_allocate_page();
 void * vm_map_page( void * pageStart );
 
 // data
-extern long * currentVPointer;	// TODO: This more reasonably
+extern unsigned long * currentVPointer;	// TODO: This more reasonably
 
 #endif

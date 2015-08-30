@@ -43,8 +43,6 @@ void start()
 	for ( int i = 0; i < 5; i++ )
 	{
 	      	p = vm_allocate_page();
-		putint( (long)p );
-		p[0] = 0;
 	}
 
 	// as my old comp sci teacher once said:
@@ -75,7 +73,6 @@ static struct video_memory *const video_memory = (void *)0xb8000;
 /// this is the total size of the video memory entries array
 static const unsigned int video_memory_size = (0xfa0 * sizeof(char)) / sizeof(struct video_memory);
 
-long * currentVPointer = KERNEL_HEAP_END;
 /// the empty character that represents the termination of a string
 static const char null_character = '\0';
 

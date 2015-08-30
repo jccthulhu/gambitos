@@ -10,6 +10,7 @@
 
 // data members
 unsigned char * heap = KERNEL_HEAP_START;
+unsigned long * currentVPointer = KERNEL_HEAP_END;
 physical_page_t * freeList = 0;
 physical_page_t * nonFreeList = 0;	// these pages can be evicted at any time
 physical_page_t * memList = 0;
@@ -287,9 +288,6 @@ void * vm_map_page( void * page )
 		}
 		currentPageTable = (long*)pTable;
 	}
-	putstr("Got PT");
-	putint((long)currentPageTable);
-	putstr(";");
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;
 	pgLong = pgLong | PG_PRESENT | PG_READWRITE | PG_USER;

@@ -18,6 +18,6 @@
 
 void putchr(char character);
 void putstr(char *string);
-
+void putint(long value);
 
 #endif

@@ -14,10 +14,14 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
+#define	VIDT		(0x14000)
+
 #pragma pack(0)
 
 //////
 /// Bootloader Stage 3 Entry Point and Execution
+
+void fault_handler( long interruptNumber, long errorCode );
 
 /// start
 /// the entry point into our C code from stage 2 of the bootloader
@@ -26,13 +30,30 @@ void start()
 {
 	putstr("Welcome to some C code!");
 
+	// DEBUG
+	((long*)VIDT)[ 0x0E ] = fault_handler;
+	// END DEBUG
+
 	vm_init( (meta_mem_t*)META_MEM );
+
+	// test memory allocation
+	long * p = vm_allocate_page();
+	putint( (long)p );
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"
 	for (;;) { asm( "hlt" ); }
 }
 
+/// DEBUG
+void fault_handler( long interruptNumber, long errorCode )
+{
+	putstr("Got an interrupt");
+	putint(interruptNumber);
+	putint(errorCode);
+	for(;;){}
+}
+/// END DEBUG
 
 //////
 /// Data Structures and Constant Values
@@ -103,4 +124,25 @@ void putstr(char *string)
 	}
 }
 
+/// putint
+/// print and integer onto the screen
+/// params:
+///	value	- the integer to print
+/// returns:
+///	none
+void putint(long value)
+{
+	char c[16];
+
+	for ( int i = 15; i >= 0; i-- )
+	{
+		c[i] = value & 0x0f;
+		c[i] = c[i] >= 10 ? (c[i] - 10) + 'A' : c[i] + '0';
+		value = value >> 4;
+	}
+	for ( int i = 0; i < 16; i++) 
+	{
+		putchr( c[i] );
+	}
+}
 

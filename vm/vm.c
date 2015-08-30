@@ -130,9 +130,9 @@ physical_page_t * vm_get_physical_page()
 void * vm_get_pml4t()
 {
 	void * pml4t;
-	asm( "movq %%cr0,%0"
+	asm( "movq %%cr3,%0"
 		: "=r"(pml4t) );
-	return pml4t;
+	return (void*)((long)pml4t & ~(0x7FF));
 }
 
 /// vm_get_pdpt
@@ -150,7 +150,7 @@ void * vm_get_pdpt()
 	{
 		if ( 0 != pml4Table[i] )
 		{
-			return (void*)(pml4Table[i]);
+			return (void*)(pml4Table[i] & ~(0x7FF));
 		}
 	}
 
@@ -176,7 +176,7 @@ void * vm_get_pdt()
 	{
 		if ( 0 != pdpTable[i] )
 		{
-			return (void*)(pdpTable[i]);
+			return (void*)(pdpTable[i] & ~(0x7FF));
 		}
 	}
 
@@ -202,7 +202,7 @@ void * vm_get_pt()
 	{
 		if ( 0 != pdTable[i] )
 		{
-			return (void*)(pdTable[i]);
+			return (void*)(pdTable[i] & ~(0x7FF));
 		}
 	}
 
@@ -247,14 +247,7 @@ void * vm_map_page( void * page )
 					PANIC("Ran out of virtual address space");
 				}
 				// allocate a page for a new pdpt
-				physical_page_t * physicalPdpTable = vm_get_physical_page();
-				if ( 0 == physicalPdpTable )
-				{
-					PANIC("Ran out of space for pdp tables");
-				}
-				physicalPdpTable->next = memList;
-				memList = physicalPdpTable;
-				long pdpTable = physicalPdpTable->pagePointer;
+				long pdpTable = (long)k_malloc( PAGE_SIZE );
 				// clear the physical page
 				for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 				{
@@ -267,15 +260,7 @@ void * vm_map_page( void * page )
 				PDT_ADD(currentPml4Table,pdpTable);
 			}
 			// allocate a page for a new pdt
-			physical_page_t * physicalPdTable = vm_get_physical_page();
-			if ( 0 == physicalPdTable )
-			{
-				PANIC("Ran out of space for pd tables");
-			}
-			physicalPdTable->next = memList;
-			memList = physicalPdTable;
-			// clear the physical page
-			long pdTable = (long)physicalPdTable;
+			long pdTable = (long)k_malloc( PAGE_SIZE );
 			for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 			{
 				((long*)pdTable)[i] = 0;
@@ -287,24 +272,19 @@ void * vm_map_page( void * page )
 			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
-		physical_page_t * physicalPageTable = vm_get_physical_page();
-		if ( 0 == physicalPageTable )
-		{
-			PANIC("Ran out of space for page tables");
-		}
-		physicalPageTable->next = memList;
-		memList = physicalPageTable;
-		// clear the physical page
-		long pTable = physicalPageTable->pagePointer;
+		long pTable = (long)k_malloc( PAGE_SIZE );
+		// mark all of its attributes appropriately
+		pTable = pTable | PG_PRESENT | PG_READWRITE;
+		// add the new page table to the current pdt
+		PDT_ADD(currentPdTable,pTable);
+		pTable = pTable & ~(0x7FF);
+		// we pull the page for the page table from user space,
+		// meaning it is not "present" in the virtual memory space -.-
 		for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 		{
 			((long*)pTable)[i] = 0;
 		}
 		currentPageTable = (long*)pTable;
-		// mark all of its attributes appropriately
-		pTable = pTable | PG_PRESENT | PG_READWRITE;
-		// add the new page table to the current pdt
-		PDT_ADD(currentPdTable,pTable);
 	}
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;

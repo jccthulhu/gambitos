@@ -41,24 +41,12 @@ void start()
 	// test memory allocation
 	long * p = vm_allocate_page();
 	putint( (long)p );
-
-	// test exception handling
-	*((long*)0x100000000) = 0x1345;
+	p[0] = 0;
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"
 	for (;;) { asm( "hlt" ); }
 }
-
-/// DEBUG
-/*void fault_handler( long interruptNumber, long errorCode )
-{
-	putstr("Got an interrupt");
-	putint(interruptNumber);
-	putint(errorCode);
-	for(;;){}
-}*/
-/// END DEBUG
 
 //////
 /// Data Structures and Constant Values

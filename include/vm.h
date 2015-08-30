@@ -34,7 +34,7 @@
 
 #define	PT_ADD(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
 				if ( 0 == x[i] ) {\
-					x[i] = y; break;\
+					x[i] = (y); break;\
 					currentVPointer = currentVPointer + 0x1000;\
 				} }\
 			}
@@ -42,6 +42,10 @@
 				if ( 0 == x[i] ) {\
 					x[i] = y; break;\
 				} }\
+			}
+#define	PDT_REPLACE(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
+					if ( 0 == x[i+1] ) { x[i] = y; }\
+				}\
 			}
 #define	CURRENT_V_POINTER()	(currentVPointer)
 

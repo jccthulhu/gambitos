@@ -272,7 +272,8 @@ void * vm_map_page( void * page )
 			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
-		long pTable = (long)k_malloc( PAGE_SIZE );
+		long pTable = (long)k_malloc( 2*PAGE_SIZE );
+		pTable = pTable + PAGE_SIZE - ( pTable % PAGE_SIZE );
 		// mark all of its attributes appropriately
 		pTable = pTable | PG_PRESENT | PG_READWRITE;
 		// add the new page table to the current pdt
@@ -286,12 +287,20 @@ void * vm_map_page( void * page )
 		}
 		currentPageTable = (long*)pTable;
 	}
+	putstr("Got PT");
+	putint((long)currentPageTable);
+	putstr(";");
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;
 	pgLong = pgLong | PG_PRESENT | PG_READWRITE | PG_USER;
 	// add the physical page to the current page table
 	PT_ADD(currentPageTable,pgLong);
 	// calculate the new virtual pointer
+
+	// flush the TLB
+	long cr3;
+	asm("movq %%cr3,%0":"=r"(cr3) );
+	asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
 
 	// clean up
 	return CURRENT_V_POINTER();

@@ -42,6 +42,9 @@ void start()
 	long * p = vm_allocate_page();
 	putint( (long)p );
 
+	// test exception handling
+	*((long*)0x100000000) = 0x1345;
+
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"
 	for (;;) { asm( "hlt" ); }

@@ -5,6 +5,7 @@
  **/
 
 // inclusions
+#include "exc.h"
 #include "kernel.h"
 #include "vm.h"
 
@@ -21,7 +22,7 @@
 //////
 /// Bootloader Stage 3 Entry Point and Execution
 
-void fault_handler( long interruptNumber, long errorCode );
+//void fault_handler( long interruptNumber, long errorCode );
 
 /// start
 /// the entry point into our C code from stage 2 of the bootloader
@@ -31,7 +32,7 @@ void start()
 	putstr("Welcome to some C code!");
 
 	// DEBUG
-	((long*)VIDT)[ 0x0E ] = fault_handler;
+	//((long*)VIDT)[ 0x0E ] = fault_handler;
 	// END DEBUG
 
 	vm_init( (meta_mem_t*)META_MEM );
@@ -46,13 +47,13 @@ void start()
 }
 
 /// DEBUG
-void fault_handler( long interruptNumber, long errorCode )
+/*void fault_handler( long interruptNumber, long errorCode )
 {
 	putstr("Got an interrupt");
 	putint(interruptNumber);
 	putint(errorCode);
 	for(;;){}
-}
+}*/
 /// END DEBUG
 
 //////

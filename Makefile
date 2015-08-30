@@ -33,7 +33,7 @@ create_bin: buildboot1 buildboot2 buildboot3 buildparttbl build_dir
 	dd if=${BUILD_DIR}boot1 of=${BUILD_DIR}boot.dmg conv=notrunc
 	dd if=${BUILD_DIR}parttbl of=${BUILD_DIR}boot.dmg conv=notrunc seek=1 count=1 bs=512
 	dd if=${BUILD_DIR}boot2 of=${BUILD_DIR}boot.dmg conv=notrunc seek=2 count=8 bs=512
-	dd if=${BUILD_DIR}boot3 of=${BUILD_DIR}boot.dmg conv=notrunc seek=10 count=8 bs=512
+	dd if=${BUILD_DIR}boot3 of=${BUILD_DIR}boot.dmg conv=notrunc seek=10 count=16 bs=512
 	mv ${BUILD_DIR}boot.dmg ${BUILD_DIR}boot.img
 
 buildparttbl: write_boot build_dir

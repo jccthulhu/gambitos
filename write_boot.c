@@ -31,7 +31,7 @@ int main( int argc, char * argv[] )
 		b.id = 0x66;
 		b.bootable = 1;
 		lba_desc_t lba;
-		lba.sz = 16;
+		lba.sz = 24;
 		lba.val1 = 0;
 		lba.val2 = 0;
 		lba.val3 = 2;

@@ -39,9 +39,13 @@ void start()
 	exc_init( (virtual_interrupt_table)VIDT );
 
 	// test memory allocation
-	long * p = vm_allocate_page();
-	putint( (long)p );
-	p[0] = 0;
+	long * p;
+	for ( int i = 0; i < 5; i++ )
+	{
+	      	p = vm_allocate_page();
+		putint( (long)p );
+		p[0] = 0;
+	}
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"

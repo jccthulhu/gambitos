@@ -146,11 +146,13 @@ void exc_page_fault_handler(long interruptNumber, long errorCode)
 {
 	putstr("Page fault");
 	putint(errorCode);
+	putstr(";");
 	long cr2;
 	asm(
 		"mov %%cr2,%0":"=r"(cr2)
 	);
 	putint(cr2);
+	putstr(";");
 	PANIC("We don't handle these yet :-/");
 }
 

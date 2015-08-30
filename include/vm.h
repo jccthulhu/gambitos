@@ -45,6 +45,8 @@
 			}
 #define	CURRENT_V_POINTER()	(currentVPointer)
 
+#define	NEXT_FREE_PAGE()	((0 == freeList) ? freeList : freeList->next)
+
 // type definitions
 typedef	long		page_t;
 typedef	page_t		* page_table_t;//[PAGE_TABLE_SIZE];

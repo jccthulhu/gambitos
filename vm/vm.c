@@ -11,7 +11,8 @@
 // data members
 unsigned char * heap = KERNEL_HEAP_START;
 physical_page_t * freeList = 0;
-physical_page_t * nonFreeList = 0;
+physical_page_t * nonFreeList = 0;	// these pages can be evicted at any time
+physical_page_t * memList = 0;
 
 // definitions
 
@@ -20,7 +21,7 @@ physical_page_t * nonFreeList = 0;
 // privately visible subroutines
 
 void form_page_lists( meta_mem_t * mem );
-void * vm_get_physical_page();
+physical_page_t * vm_get_physical_page();
 void * vm_get_pml4t();
 void * vm_get_pdpt();
 void * vm_get_pdt();
@@ -99,11 +100,12 @@ void form_page_lists( meta_mem_t * mem )
 
 /// vm_get_physical_page
 /// a private function that gets the next available physical page from memory
+/// and unlinks it from the free list
 /// params:
 ///	none
 /// returns:
 ///	a pointer to the beginning of the physical page
-void * vm_get_physical_page()
+physical_page_t * vm_get_physical_page()
 {
 	// variables
 	physical_page_t * page;
@@ -245,55 +247,60 @@ void * vm_map_page( void * page )
 					PANIC("Ran out of virtual address space");
 				}
 				// allocate a page for a new pdpt
-				long * physicalPdpTable = vm_get_physical_page();
+				physical_page_t * physicalPdpTable = vm_get_physical_page();
 				if ( 0 == physicalPdpTable )
 				{
 					PANIC("Ran out of space for pdp tables");
 				}
-				// mark all of its attributes appropriately
-				long pdpTable = (long)physicalPdpTable;
-				pdpTable = pdpTable | PG_PRESENT | PG_READWRITE;
+				physicalPdpTable->next = memList;
+				memList = physicalPdpTable;
+				long pdpTable = physicalPdpTable->pagePointer;
 				// clear the physical page
 				for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 				{
-					physicalPdpTable[i] = 0;
+					((long*)pdpTable)[i] = 0;
 				}
+				currentPdpTable = (long*)pdpTable;
+				// mark all of its attributes appropriately
+				pdpTable = pdpTable | PG_PRESENT | PG_READWRITE;
 				// add the new pdpt to the current pml4t
+				PDT_ADD(currentPml4Table,pdpTable);
 			}
 			// allocate a page for a new pdt
-			long * physicalPdTable = vm_get_physical_page();
+			physical_page_t * physicalPdTable = vm_get_physical_page();
 			if ( 0 == physicalPdTable )
 			{
 				PANIC("Ran out of space for pd tables");
 			}
-			// mark all of its attributes appropriately
-			long pdTable = (long)physicalPdTable;
-			pdTable = pdTable | PG_PRESENT | PG_READWRITE;
 			// clear the physical page
+			long pdTable = (long)physicalPdTable;
 			for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 			{
-				physicalPdTable[i] = 0;
+				((long*)pdTable)[i] = 0;
 			}
+			currentPdTable = (long*)pdTable;
+			// mark all of its attributes appropriately
+			pdTable = pdTable | PG_PRESENT | PG_READWRITE;
 			// add the new pdt to the pdpt
 			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
-		long * physicalPageTable = vm_get_physical_page();
+		physical_page_t * physicalPageTable = vm_get_physical_page();
 		if ( 0 == physicalPageTable )
 		{
 			PANIC("Ran out of space for page tables");
 		}
-		// mark all of its attributes appropriately
-		long pTable = (long)physicalPageTable;
-		pTable = pTable | PG_PRESENT | PG_READWRITE;
 		// clear the physical page
+		long pTable = physicalPageTable->pagePointer;
 		for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
 		{
-			physicalPageTable[i] = 0;
+			((long*)pTable)[i] = 0;
 		}
+		currentPageTable = (long*)pTable;
+		// mark all of its attributes appropriately
+		pTable = pTable | PG_PRESENT | PG_READWRITE;
 		// add the new page table to the current pdt
 		PDT_ADD(currentPdTable,pTable);
-		currentPageTable = physicalPageTable;
 	}
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;
@@ -320,12 +327,18 @@ void * vm_allocate_page()
 
 	// function body 
 	// try to get a physical page
+	physicalPage = vm_get_physical_page();
 	// if we could not get a physical page
+	if ( 0 == physicalPage )
+	{
 		// get the most evictable virtual page
 		// get its physical pointer
 		// evict the virtual page
+	}
 	// map the physical page into virtual memory
 	virtualPage = vm_map_page( physicalPage );
+	// put it in the evictable list
+
 
 	// clean up
 	return virtualPage;

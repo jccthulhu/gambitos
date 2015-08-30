@@ -15,7 +15,7 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	VIDT		(0x14000)
+#define	VIDT		(0x14200)
 
 #pragma pack(0)
 
@@ -43,6 +43,10 @@ void start()
 	for ( int i = 0; i < 5; i++ )
 	{
 	      	p = vm_allocate_page();
+		putint(p);
+		p[0] = 0;
+		p[511] = 0;
+		putstr(";");
 	}
 
 	// as my old comp sci teacher once said:

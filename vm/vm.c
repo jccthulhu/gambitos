@@ -229,6 +229,10 @@ void * vm_map_page( void * page )
 	// if there is no space left in the page table
 	if ( PT_FULL(currentPageTable) )
 	{
+		// DEBUG
+		putstr("PT FULL");
+		// END DEBUG
+
 		// get the current pdt
 		long * currentPdTable = vm_get_pdt();
 		// if there is no space left in the pdt

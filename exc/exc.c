@@ -145,7 +145,7 @@ void exc_gp_fault_handler(long interruptNumber, long errorCode)
 void exc_page_fault_handler(long interruptNumber, long errorCode)
 {
 	putstr("Page fault");
-	return;
+	PANIC("We don't handle these yet :-/");
 }
 
 void exc_x87_handler(long interruptNumber, long errorCode)

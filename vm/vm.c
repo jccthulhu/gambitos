@@ -326,8 +326,8 @@ void * vm_map_page( void * page )
 void * vm_allocate_page()
 {
 	// variables
+	physical_page_t * physicalPage;
 	void * virtualPage;
-	void * physicalPage;
 
 	// function body 
 	// try to get a physical page
@@ -335,14 +335,17 @@ void * vm_allocate_page()
 	// if we could not get a physical page
 	if ( 0 == physicalPage )
 	{
+		// TODO: paging!
+		PANIC("We don't do paging yet :-/");
 		// get the most evictable virtual page
 		// get its physical pointer
 		// evict the virtual page
 	}
 	// map the physical page into virtual memory
-	virtualPage = vm_map_page( physicalPage );
+	virtualPage = vm_map_page( ((void*)(physicalPage->pagePointer)) );
 	// put it in the evictable list
-
+	physicalPage->next = nonFreeList;
+	nonFreeList = physicalPage;
 
 	// clean up
 	return virtualPage;

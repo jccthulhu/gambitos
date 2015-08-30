@@ -17,6 +17,24 @@
 #pragma pack(0)
 
 //////
+/// Bootloader Stage 3 Entry Point and Execution
+
+/// start
+/// the entry point into our C code from stage 2 of the bootloader
+/// from here, we can finish up the bootloading sequence and continue on to initialize the kernel
+void start()
+{
+	putstr("Welcome to some C code!");
+
+	vm_init( (meta_mem_t*)META_MEM );
+
+	// as my old comp sci teacher once said:
+	// "operating systems are easy; if nothing happens, do nothing"
+	for (;;) { asm( "hlt" ); }
+}
+
+
+//////
 /// Data Structures and Constant Values
 
 /// struct video_memory
@@ -85,20 +103,4 @@ void putstr(char *string)
 	}
 }
 
-//////
-/// Bootloader Stage 3 Entry Point and Execution
-
-/// start
-/// the entry point into our C code from stage 2 of the bootloader
-/// from here, we can finish up the bootloading sequence and continue on to initialize the kernel
-void start()
-{
-	putstr("Welcome to some C code!");
-
-	vm_init( (meta_mem_t*)META_MEM );
-
-	// as my old comp sci teacher once said:
-	// "operating systems are easy; if nothing happens, do nothing"
-	for (;;) { asm( "hlt" ); }
-}
 

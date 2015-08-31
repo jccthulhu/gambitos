@@ -242,6 +242,33 @@ void * vm_map_page( void * page )
 	// if there is no space left in the page table
 	if ( PT_FULL(currentPageTable) )
 	{
+		// allocate a page for the new page table
+		physical_page_t * physPTable = vm_get_physical_page();
+		if ( 0 == physPTable )
+		{
+			// TODO: evict a page and use it
+			PANIC("Ran out of Page table pages");
+		}
+		long pTable = physPTable->pagePointer;
+		// link the new page into the memory page list
+		physPTable->next = memList;
+		memList = physPTable;
+		// mark the new page's attributes
+		pTable = pTable | PG_PRESENT | PG_READWRITE;
+		// add the new page table to the previous page table
+		PT_ADD(currentPageTable,pTable);
+		// flush the TLB
+		FLUSH_TLB();
+		// we're in virtual memory, so we have to write to the new page
+		// table's virtual address instead of its real one
+		long * pVTable = (long*)CURRENT_V_POINTER();
+		// clear the new page table
+		for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
+		{
+			((long*)pVTable)[i] = 0;
+		}
+		// set it as the current page table for later in this subroutine
+		currentPageTable = (long*)pVTable;
 		// get the current pdt
 		long * currentPdTable = vm_get_pdt();
 		// if there is no space left in the pdt
@@ -274,39 +301,33 @@ void * vm_map_page( void * page )
 				PDT_ADD(currentPml4Table,pdpTable);
 			}
 			// allocate a page for a new pdt
-			long pdTable = (long)k_malloc( PAGE_SIZE*sizeof(long) );
-			for ( long i = 0; i < PAGE_SIZE; i++ )
+			physical_page_t * physPDTable = vm_get_physical_page();
+			if ( 0 == physPDTable )
 			{
-				((long*)pdTable)[i] = 0;
+				// TODO: evict a page and use it
+				PANIC("Ran out of pd table pages");
 			}
-			currentPdTable = (long*)pdTable;
-			// mark all of its attributes appropriately
+			long pdTable = physPDTable->pagePointer;
+			// link the new page into the memory page list
+			physPDTable->next = memList;
+			memList = physPDTable;
+			// mark the new page's attributes
 			pdTable = pdTable | PG_PRESENT | PG_READWRITE;
+			// add the new page to the page table
+			PT_ADD(currentPageTable,pdTable);
+			// flush the TLB
+			FLUSH_TLB();
+			long * pdVTable = (long*)CURRENT_V_POINTER();
+			// clear the new pd table
+			for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
+			{
+				((long*)pdVTable)[i] = 0;
+			}
+			// set it as the urrent pd table for later in this subroutine
+			currentPdTable = (long*)pdTable;
 			// add the new pdt to the pdpt
 			PDT_ADD(currentPdpTable,pdTable);
 		}
-		// allocate a page for the new page table
-		physical_page_t * physPTable = vm_get_physical_page();
-		long pTable = physPTable->pagePointer;
-		// link the new page into the memory page list
-		physPTable->next = memList;
-		memList = physPTable;
-		// mark the new page's attributes
-		pTable = pTable | PG_PRESENT | PG_READWRITE;
-		// add the new page table to the previous page table
-		PT_ADD(currentPageTable,pTable);
-		// flush the TLB
-		FLUSH_TLB();
-		// we're in virtual memory, so we have to write to the new page
-		// table's virtual address instead of its real one
-		long * pVTable = (long*)CURRENT_V_POINTER();
-		// clear the new page table
-		for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
-		{
-			((long*)pVTable)[i] = 0;
-		}
-		// set it as the current page table for later in this subroutine
-		currentPageTable = (long*)pVTable;
 		// add the new page table to the page directory table
 		PDT_ADD(currentPdTable,pTable);
 		// mark this page table as the current page table for the entire subsystem

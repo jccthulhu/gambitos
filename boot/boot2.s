@@ -285,7 +285,7 @@ create_page_tables.1:
 	# we set up the first page table to identiy map to the first pages in memory, starting with the page at address 0x0
 	# this is needed because we are currently operating within the bounds of the zeroth page table and need to prevent pointer confusion when paging is finally turned on
 	movl	$PT,%edi		# load the address of the first page table into %edi
-	movl	$0x3FE,%ecx		# set the loop counter to the size in terms of quad-words of the Page Table (PT)
+	movl	$0x3FF,%ecx		# set the loop counter to the size in terms of quad-words of the Page Table (PT)
 	movl	$0x03,%ebx		# each page is Present/Readable/Writable, so the pointer to the zeroth page and all other pages will end with 0x03
 # loop to set up the entries of the zeroth page table
 create_page_tables.0:

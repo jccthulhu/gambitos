@@ -15,6 +15,11 @@ physical_page_t * freeList = 0;
 physical_page_t * nonFreeList = 0;	// these pages can be evicted at any time
 physical_page_t * memList = 0;
 
+void * currentPt = (void*)0x14000;
+void * currentPdt = (void*)0x12000;
+void * currentPdpt = (void*)0x11000;
+void * currentPml4t = (void*)0x10000;
+
 // definitions
 
 // subroutines
@@ -144,6 +149,8 @@ void * vm_get_pml4t()
 /// 	the pointer to the current pdp table
 void * vm_get_pdpt()
 {
+	return currentPdpt;
+
 	long * pml4Table;
 
 	pml4Table = (long*)vm_get_pml4t();
@@ -170,6 +177,8 @@ void * vm_get_pdpt()
 ///	the pointer to the current pd table
 void * vm_get_pdt()
 {
+	return currentPdt;
+
 	long * pdpTable;
 
 	pdpTable = (long*)vm_get_pdpt();
@@ -196,6 +205,9 @@ void * vm_get_pdt()
 ///	the pointer to the current page table
 void * vm_get_pt()
 {
+
+	return currentPt;
+
 	long * pdTable;
 
 	pdTable = (long*)vm_get_pdt();
@@ -224,15 +236,12 @@ void * vm_map_page( void * page )
 	// variables
 
 	// function body
+
 	// get the current page table
 	long * currentPageTable = vm_get_pt();
 	// if there is no space left in the page table
 	if ( PT_FULL(currentPageTable) )
 	{
-		// DEBUG
-		putstr("PT FULL");
-		// END DEBUG
-
 		// get the current pdt
 		long * currentPdTable = vm_get_pdt();
 		// if there is no space left in the pdt
@@ -265,8 +274,8 @@ void * vm_map_page( void * page )
 				PDT_ADD(currentPml4Table,pdpTable);
 			}
 			// allocate a page for a new pdt
-			long pdTable = (long)k_malloc( PAGE_SIZE );
-			for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+			long pdTable = (long)k_malloc( PAGE_SIZE*sizeof(long) );
+			for ( long i = 0; i < PAGE_SIZE; i++ )
 			{
 				((long*)pdTable)[i] = 0;
 			}
@@ -277,26 +286,49 @@ void * vm_map_page( void * page )
 			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
-		long pTable = (long)k_malloc( 2*PAGE_SIZE );
-		pTable = pTable + PAGE_SIZE - ( pTable % PAGE_SIZE );
+		//long pTable = (long)k_malloc( 2*PAGE_SIZE );
+		//pTable = pTable + PAGE_SIZE - ( pTable % PAGE_SIZE );
 		// mark all of its attributes appropriately
+
+		physical_page_t * physPTable = vm_get_physical_page();
+		long pTable = physPTable->pagePointer;
+		physPTable->next = memList;
+		memList = physPTable;
+
 		pTable = pTable | PG_PRESENT | PG_READWRITE;
+		// add the new page table to the previous page table
+		PT_ADD(currentPageTable,pTable);
 		// add the new page table to the current pdt
-		PDT_ADD(currentPdTable,pTable);
-		pTable = pTable & ~(0x7FF);
+		//PDT_ADD(currentPdTable,pTable);
+
+		// flush the TLB
+		long cr3;
+		asm("movq %%cr3,%0":"=r"(cr3) );
+		asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
+
+		//pTable = pTable & ~(0x7FF);
+		long * pVTable = CURRENT_V_POINTER();
 		// we pull the page for the page table from user space,
 		// meaning it is not "present" in the virtual memory space -.-
-		for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+		for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
 		{
-			((long*)pTable)[i] = 0;
+			((long*)pVTable)[i] = 0;
 		}
-		currentPageTable = (long*)pTable;
+		currentPageTable = (long*)pVTable;
+
+		PDT_ADD(currentPdTable,pTable);
+		currentPt = pVTable;
+		asm("movq %%cr3,%0":"=r"(cr3) );
+		asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
+
 	}
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;
 	pgLong = pgLong | PG_PRESENT | PG_READWRITE | PG_USER;
+
 	// add the physical page to the current page table
 	PT_ADD(currentPageTable,pgLong);
+
 	// calculate the new virtual pointer
 
 	// flush the TLB

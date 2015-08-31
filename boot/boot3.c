@@ -15,7 +15,7 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	VIDT		(0x14200)
+#define	VIDT		(0x15000)
 
 #pragma pack(0)
 
@@ -40,7 +40,7 @@ void start()
 
 	// test memory allocation
 	long * p;
-	for ( int i = 0; i < 5; i++ )
+	for ( int i = 0; i < 3; i++ )
 	{
 	      	p = vm_allocate_page();
 		putint(p);
@@ -48,6 +48,14 @@ void start()
 		p[511] = 0;
 		putstr(";");
 	}
+	p = vm_allocate_page();
+	putint(p);
+	putstr(";");
+	p = vm_allocate_page();
+	putint(p);
+	p[0] = 0;
+	p[511] = 0;
+	putstr(";");
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"

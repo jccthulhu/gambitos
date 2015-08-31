@@ -18,7 +18,7 @@
 #define	TOTAL_MEM_SIZE	(32*1024*1024)
 
 #define	KERNEL_HEAP_START	0x100000
-#define	KERNEL_HEAP_END		0x3FE000
+#define	KERNEL_HEAP_END		0x3FF000
 
 #define	FREE_MEM_TYPE		0x01
 #define	PAGE_SIZE		0x1000
@@ -27,12 +27,12 @@
 #define	PG_READWRITE	0x02
 #define	PG_USER		0x04
 
-#define	PT_FULL(x)	(0 != x[PAGE_TABLE_SIZE-1])
+#define	PT_FULL(x)	(0 != x[PAGE_TABLE_SIZE-2])
 #define	PDT_FULL(x)	(0 != x[PD_TABLE_SIZE-1])
 #define	PDPT_FULL(x)	(0 != x[PDP_TABLE_SIZE-1])
 #define	PML4T_FULL(x)	(0 != x[PML4_TABLE_SIZE-1])
 
-#define	PT_ADD(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
+#define	PT_ADD(x,y)	{ for ( long i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
 				if ( 0 == x[i] ) {\
 					x[i] = (y);\
 					currentVPointer = currentVPointer + 0x200;\
@@ -41,7 +41,7 @@
 			}
 #define	PDT_ADD(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\
 				if ( 0 == x[i] ) {\
-					x[i] = y; break;\
+					x[i] = (y); break;\
 				} }\
 			}
 #define	PDT_REPLACE(x,y)	{ for ( int i = 0; i < PAGE_TABLE_SIZE; i++ ) {\

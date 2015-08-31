@@ -20,7 +20,7 @@ BUILD_DIR=build/
 all:	create_bin
 
 run-qemu: all
-	qemu-system-x86_64 -hda ${BUILD_DIR}boot.img
+	qemu-system-x86_64 -hda ${BUILD_DIR}boot.img -m 64
 
 build_dir:
 	mkdir -p build

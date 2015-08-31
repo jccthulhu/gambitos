@@ -286,55 +286,41 @@ void * vm_map_page( void * page )
 			PDT_ADD(currentPdpTable,pdTable);
 		}
 		// allocate a page for the new page table
-		//long pTable = (long)k_malloc( 2*PAGE_SIZE );
-		//pTable = pTable + PAGE_SIZE - ( pTable % PAGE_SIZE );
-		// mark all of its attributes appropriately
-
 		physical_page_t * physPTable = vm_get_physical_page();
 		long pTable = physPTable->pagePointer;
+		// link the new page into the memory page list
 		physPTable->next = memList;
 		memList = physPTable;
-
+		// mark the new page's attributes
 		pTable = pTable | PG_PRESENT | PG_READWRITE;
 		// add the new page table to the previous page table
 		PT_ADD(currentPageTable,pTable);
-		// add the new page table to the current pdt
-		//PDT_ADD(currentPdTable,pTable);
-
 		// flush the TLB
-		long cr3;
-		asm("movq %%cr3,%0":"=r"(cr3) );
-		asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
-
-		//pTable = pTable & ~(0x7FF);
-		long * pVTable = CURRENT_V_POINTER();
-		// we pull the page for the page table from user space,
-		// meaning it is not "present" in the virtual memory space -.-
+		FLUSH_TLB();
+		// we're in virtual memory, so we have to write to the new page
+		// table's virtual address instead of its real one
+		long * pVTable = (long*)CURRENT_V_POINTER();
+		// clear the new page table
 		for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
 		{
 			((long*)pVTable)[i] = 0;
 		}
+		// set it as the current page table for later in this subroutine
 		currentPageTable = (long*)pVTable;
-
+		// add the new page table to the page directory table
 		PDT_ADD(currentPdTable,pTable);
+		// mark this page table as the current page table for the entire subsystem
 		currentPt = pVTable;
-		asm("movq %%cr3,%0":"=r"(cr3) );
-		asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
-
+		// flush the TLB so this all takes effect
+		FLUSH_TLB();
 	}
 	// mark the physical page's attributes appropriately
 	long pgLong = (long)page;
 	pgLong = pgLong | PG_PRESENT | PG_READWRITE | PG_USER;
-
 	// add the physical page to the current page table
 	PT_ADD(currentPageTable,pgLong);
-
-	// calculate the new virtual pointer
-
 	// flush the TLB
-	long cr3;
-	asm("movq %%cr3,%0":"=r"(cr3) );
-	asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );
+	FLUSH_TLB();
 
 	// clean up
 	return CURRENT_V_POINTER();

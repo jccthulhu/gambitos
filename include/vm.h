@@ -50,7 +50,10 @@
 			}
 #define	CURRENT_V_POINTER()	(currentVPointer - 0x200)
 
-#define	NEXT_FREE_PAGE()	((0 == freeList) ? freeList : freeList->next)
+#define	FLUSH_TLB()	{ long cr3;\
+				asm("movq %%cr3,%0":"=r"(cr3) );\
+				asm("movq %0,%%cr3":"=r"(cr3):"r"(cr3) );\
+			}
 
 // type definitions
 typedef	long		page_t;

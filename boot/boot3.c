@@ -40,13 +40,12 @@ void start()
 
 	// test memory allocation
 	long * p;
-	for ( int i = 0; i < 10; i++ )
+	// allocate enough to force creation of multiple page tables
+	for ( int i = 0; i < 0x400; i++ )
 	{
 	      	p = vm_allocate_page();
-		putint(p);
 		p[0] = 0;
 		p[511] = 0;
-		putstr(";");
 	}
 
 	// as my old comp sci teacher once said:

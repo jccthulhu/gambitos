@@ -15,7 +15,7 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	VIDT		(0x15000)
+#define	VIDT		(0x19000)
 
 #pragma pack(0)
 
@@ -41,6 +41,10 @@ void start()
 	// test memory allocation
 	long * p;
 	// allocate enough to force creation of multiple page tables
+	p = vm_allocate_page();
+	putint(p);
+	p[0] = 0;
+	p[511] = 0;
 	for ( int i = 0; i < 0x400; i++ )
 	{
 	      	p = vm_allocate_page();

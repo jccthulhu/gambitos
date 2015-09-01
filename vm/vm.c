@@ -15,7 +15,7 @@ physical_page_t * freeList = 0;
 physical_page_t * nonFreeList = 0;	// these pages can be evicted at any time
 physical_page_t * memList = 0;
 
-void * currentPt = (void*)0x14000;
+void * currentPt = (void*)0x18000;
 void * currentPdt = (void*)0x12000;
 void * currentPdpt = (void*)0x11000;
 void * currentPml4t = (void*)0x10000;

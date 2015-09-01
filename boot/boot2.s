@@ -24,13 +24,15 @@
 	# this many levels of granularity makes it easy to isolate specific segemnts in memory
 	# having 4 levels of addressing is required for entering into long mode
 	# each of these tables takes up 0x1000 bytes in memory, and each entry within each table is 8 bytes long, which is a pointer in long mode
+	.set NUM_KERN_PTS,0x6	# six page tables referencing kernel space
+				# 6 PT * 2 MB/PT = 12 MB of kernel space
 	.set PT_SZ,0x1000	# the size of a page table
 	.set PML4T,0x10000	# this is the address to the 'page map level 4' (PML4) table, which points to the 512 PDP tables
 	.set PDPT,PML4T+PT_SZ	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
 	.set PDT,PDPT+PT_SZ	# this is the address to the page directory (PD) table, which points to the 512 page tables
 	.set PT,PDT+PT_SZ	# this is the address to the first page table, which points to 512 pages in memory
-	.set PT2,PT+PT_SZ	# a second page table
-	.set VIDT,PT2+PT_SZ	# this is an abstraction over the IDT
+	#.set PT2,PT+PT_SZ	# a second page table
+	.set VIDT,PT+(PT_SZ*NUM_KERN_PTS)	# this is an abstraction over the IDT
 
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
@@ -248,7 +250,7 @@ create_page_tables:
 
 	# set up values for a loop to clear the tables
 	movl	$PML4T,%edi		# load the pointer to the start of the page table construct into %edi
-	movl	$0x1200,%ecx		# use %ecx as a loop counter (used by the loop instruction)
+	movl	$(NUM_KERN_PTS+3)*0x400,%ecx		# use %ecx as a loop counter (used by the loop instruction)
 					# set the loop counter to the size in terms of double-words of the page table construct,
 					# which is the continuous space in memory that contians the page table addressing heirarchy
 # loop to clear all entries at all levels of the page table addressing heirarchy
@@ -271,21 +273,21 @@ create_page_tables.1:
 	orl	$0x03,%eax		# set the lower two bits of the PD table pointer to be Present/Readable/Writable
 	movl	%eax,(%edi)		# set the first entry of the PDP table to the pointer to the first PD table
 
+	movl	$NUM_KERN_PTS,%ecx
 	# make the first entry of the PDT point to the first PT
 	movl	$PDT,%edi		# load the address of the PD table into %edi
 	movl	$PT,%eax		# load the address of the Page table into %eax
 	orl	$0x03,%eax		# set the lower two bits of the Page table pointer to be Present/Readable/Writable
+create_page_tables.2:
 	movl	%eax,(%edi)		# set the first entry of the PD table to the pointer to the first Page table
-	movl	$PDT,%edi
-	movl	$PT2,%eax
-	orl	$0x03,%eax
-	movl	%eax,0x8(%edi)
-
+	addl	$PT_SZ,%eax
+	addl	$0x8,%edi
+	loop	create_page_tables.2
 	# set up the first page table to have every entry point to the corresponding physical page of memory
 	# we set up the first page table to identiy map to the first pages in memory, starting with the page at address 0x0
 	# this is needed because we are currently operating within the bounds of the zeroth page table and need to prevent pointer confusion when paging is finally turned on
 	movl	$PT,%edi		# load the address of the first page table into %edi
-	movl	$0x3FF,%ecx		# set the loop counter to the size in terms of quad-words of the Page Table (PT)
+	movl	$(NUM_KERN_PTS*0x200 - 0x1),%ecx	# set the loop counter to the size in terms of quad-words of the Page Table (PT)
 	movl	$0x03,%ebx		# each page is Present/Readable/Writable, so the pointer to the zeroth page and all other pages will end with 0x03
 # loop to set up the entries of the zeroth page table
 create_page_tables.0:

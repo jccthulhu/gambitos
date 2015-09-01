@@ -274,6 +274,11 @@ void * vm_map_page( void * page )
 		// if there is no space left in the pdt
 		if ( PDT_FULL(currentPdTable ) )
 		{
+			// DEBUG
+			putstr("PDT FULL");
+			putint(page);
+			// END DEBUG
+
 			// get the current pdpt
 			long * currentPdpTable = vm_get_pdpt();
 			// if there is no space left in the pdpt
@@ -319,14 +324,26 @@ void * vm_map_page( void * page )
 			FLUSH_TLB();
 			long * pdVTable = (long*)CURRENT_V_POINTER();
 			// clear the new pd table
+			// NOTE: This is causing a page fault
+			// OH NO!!!! OF COURSE IT IS!!!!
+			// THE NEW PAGE TABLE ISN'T A PAGE TABLE YET SO
+			// IT DOESN'T MATTER THAT THE NEW PAGE TABLE MAPS THIS
+			// PAGE IN!!!!
+			// AHHHHH!!!!
 			for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
 			{
-				((long*)pdVTable)[i] = 0;
+				pdVTable[i] = 0;
 			}
+
+			// DEBUG
+			putstr("PDT NO LONGER FULL");
+			// END DEBUG
+
 			// set it as the urrent pd table for later in this subroutine
-			currentPdTable = (long*)pdTable;
+			currentPdTable = (long*)pdVTable;
 			// add the new pdt to the pdpt
 			PDT_ADD(currentPdpTable,pdTable);
+			FLUSH_TLB();
 		}
 		// add the new page table to the page directory table
 		PDT_ADD(currentPdTable,pTable);

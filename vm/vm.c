@@ -79,28 +79,6 @@ physical_page_t * vm_get_memable_page()
 	return p;
 }
 
-void vm_replenish_memable()
-{
-	long length = 0;
-	physical_page_t * p = memableList;
-	while ( p )
-	{
-		length++;
-		p = p->next;
-	}
-	while ( length < MEMABLE_LIST_SIZE )
-	{
-		physical_page_t * m = vm_get_physical_page();
-		if ( 0 == m )
-		{
-			PANIC("Couldn't keep memory margin");
-		}
-		m->next = memableList;
-		memableList = m;
-		length++;
-	}
-}
-
 /// form_page_lists
 /// create free list of pages
 /// params:
@@ -321,11 +299,6 @@ void * vm_map_page( void * page )
 		// if there is no space left in the pdt
 		if ( PDT_FULL(currentPdTable ) )
 		{
-			// DEBUG
-			putstr("PDT FULL");
-			putint(page);
-			// END DEBUG
-
 			// get the current pdpt
 			long * currentPdpTable = vm_get_pdpt();
 			// if there is no space left in the pdpt
@@ -370,9 +343,6 @@ void * vm_map_page( void * page )
 			{
 				pdVTable[i] = 0;
 			}
-			// DEBUG
-			putstr("PDT NO LONGER FULL");
-			// END DEBUG
 			// set it as the current pd table for later in this subroutine
 			currentPdTable = (long*)pdVTable;
 			currentPdt = pdVTable;

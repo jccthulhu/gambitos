@@ -79,6 +79,28 @@ physical_page_t * vm_get_memable_page()
 	return p;
 }
 
+void vm_replenish_memable()
+{
+	long length = 0;
+	physical_page_t * p = memableList;
+	while ( p )
+	{
+		length++;
+		p = p->next;
+	}
+	while ( length < MEMABLE_LIST_SIZE )
+	{
+		physical_page_t * m = vm_get_physical_page();
+		if ( 0 == m )
+		{
+			PANIC("Couldn't keep memory margin");
+		}
+		m->next = memableList;
+		memableList = m;
+		length++;
+	}
+}
+
 /// form_page_lists
 /// create free list of pages
 /// params:
@@ -331,10 +353,9 @@ void * vm_map_page( void * page )
 				PDT_ADD(currentPml4Table,pdpTable);
 			}
 			// allocate a page for a new pdt
-			physical_page_t * physPDTable = vm_get_physical_page();
+			physical_page_t * physPDTable = vm_get_memable_page();
 			if ( 0 == physPDTable )
 			{
-				// TODO: evict a page and use it
 				PANIC("Ran out of pd table pages");
 			}
 			long pdTable = physPDTable->pagePointer;
@@ -343,29 +364,28 @@ void * vm_map_page( void * page )
 			memList = physPDTable;
 			// mark the new page's attributes
 			pdTable = pdTable | PG_PRESENT | PG_READWRITE;
-			// add the new page to the page table
-			PT_ADD(currentPageTable,pdTable);
-			// flush the TLB
-			FLUSH_TLB();
-			long * pdVTable = (long*)CURRENT_V_POINTER();
+			long * pdVTable = (long*)physPDTable->pageVPointer;
 			// clear the new pd table
-			// NOTE: This is causing a page fault
-			// OH NO!!!! OF COURSE IT IS!!!!
-			// THE NEW PAGE TABLE ISN'T A PAGE TABLE YET SO
-			// IT DOESN'T MATTER THAT THE NEW PAGE TABLE MAPS THIS
-			// PAGE IN!!!!
-			// AHHHHH!!!!
 			for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
 			{
 				pdVTable[i] = 0;
 			}
-
 			// DEBUG
 			putstr("PDT NO LONGER FULL");
 			// END DEBUG
-
-			// set it as the urrent pd table for later in this subroutine
+			// set it as the current pd table for later in this subroutine
 			currentPdTable = (long*)pdVTable;
+			currentPdt = pdVTable;
+			// replenish the memable page that we borrowed
+			physical_page_t * replacement = vm_get_physical_page();
+			if ( 0 == replacement )
+			{
+				PANIC("Need extra memory");
+			}
+			replacement->next = memableList;
+			memableList = replacement;
+			PT_ADD(pVTable,(replacement->pagePointer|PG_PRESENT|PG_READWRITE));
+			replacement->pageVPointer = (long)CURRENT_V_POINTER();
 			// add the new pdt to the pdpt
 			PDT_ADD(currentPdpTable,pdTable);
 			FLUSH_TLB();

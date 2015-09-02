@@ -45,12 +45,14 @@ void start()
 	putint(p);
 	p[0] = 0;
 	p[511] = 0;
-	for ( int i = 0; i < 0x40000; i++ )
+	//for ( int i = 0; i < 0x40000; i++ )
+	for ( int i = 0; i < 0x400; i++ ) 
 	{
 	      	p = vm_allocate_page();
 		p[0] = 0;
 		p[511] = 0;
 	}
+	putstr(";");
 	putint(p);
 
 	// as my old comp sci teacher once said:

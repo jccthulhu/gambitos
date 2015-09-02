@@ -18,10 +18,11 @@
 #define	TOTAL_MEM_SIZE	(32*1024*1024)
 
 #define	KERNEL_HEAP_START	0x100000
-#define	KERNEL_HEAP_END		0xBFF000
+#define	KERNEL_HEAP_END		0x13E0000
 
 #define	FREE_MEM_TYPE		0x01
 #define	PAGE_SIZE		0x1000
+#define	MEMABLE_LIST_SIZE	0x0a
 
 #define	PG_PRESENT	0x01
 #define	PG_READWRITE	0x02
@@ -72,6 +73,7 @@ typedef struct __attribute__((packed))
 typedef struct physical_page_str
 {
 	unsigned long pagePointer;
+	unsigned long pageVPointer;
 	struct physical_page_str * next;
 } physical_page_t;
 

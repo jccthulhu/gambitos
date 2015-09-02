@@ -14,8 +14,9 @@ unsigned long * currentVPointer = KERNEL_HEAP_END;
 physical_page_t * freeList = 0;
 physical_page_t * nonFreeList = 0;	// these pages can be evicted at any time
 physical_page_t * memList = 0;
+physical_page_t * memableList = 0;
 
-void * currentPt = (void*)0x18000;
+void * currentPt = (void*)0x1C000;
 void * currentPdt = (void*)0x12000;
 void * currentPdpt = (void*)0x11000;
 void * currentPml4t = (void*)0x10000;
@@ -49,9 +50,33 @@ void vm_init( meta_mem_t * mem )
 
 	// function body
 	form_page_lists( mem );
+	// create a memory queue for emergencies
+	for ( long i = 0; i < MEMABLE_LIST_SIZE; i++ )
+	{
+		physical_page_t * p = vm_get_physical_page();
+		if ( 0 == p )
+		{
+			PANIC("Ran out of memory really early");
+		}
+		p->next = memableList;
+		memableList = p;
+		PT_ADD(((long*)vm_get_pt()),(p->pagePointer|PG_PRESENT|PG_READWRITE));
+		p->pageVPointer = (long)CURRENT_V_POINTER();
+	}
 
 	// clean up
 	return;
+}
+
+physical_page_t * vm_get_memable_page()
+{
+	if ( 0 == memableList )
+	{
+		PANIC("Ran out of pages for memory");
+	}
+	physical_page_t * p = memableList;
+	memableList = p->next;
+	return p;
 }
 
 /// form_page_lists

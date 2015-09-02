@@ -24,8 +24,9 @@
 	# this many levels of granularity makes it easy to isolate specific segemnts in memory
 	# having 4 levels of addressing is required for entering into long mode
 	# each of these tables takes up 0x1000 bytes in memory, and each entry within each table is 8 bytes long, which is a pointer in long mode
-	.set NUM_KERN_PTS,0x6	# six page tables referencing kernel space
-				# 6 PT * 2 MB/PT = 12 MB of kernel space
+	.set NUM_KERN_PTS,0x0a	# ten page tables referencing kernel space
+				# 10 PT * 2 MB/PT = 20 MB of kernel space
+	.set PT_MARGIN,0x20
 	.set PT_SZ,0x1000	# the size of a page table
 	.set PML4T,0x10000	# this is the address to the 'page map level 4' (PML4) table, which points to the 512 PDP tables
 	.set PDPT,PML4T+PT_SZ	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
@@ -287,7 +288,7 @@ create_page_tables.2:
 	# we set up the first page table to identiy map to the first pages in memory, starting with the page at address 0x0
 	# this is needed because we are currently operating within the bounds of the zeroth page table and need to prevent pointer confusion when paging is finally turned on
 	movl	$PT,%edi		# load the address of the first page table into %edi
-	movl	$(NUM_KERN_PTS*0x200 - 0x1),%ecx	# set the loop counter to the size in terms of quad-words of the Page Table (PT)
+	movl	$(NUM_KERN_PTS*0x200 - PT_MARGIN),%ecx	# set the loop counter to the size in terms of quad-words of the Page Table (PT)
 	movl	$0x03,%ebx		# each page is Present/Readable/Writable, so the pointer to the zeroth page and all other pages will end with 0x03
 # loop to set up the entries of the zeroth page table
 create_page_tables.0:

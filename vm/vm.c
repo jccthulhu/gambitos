@@ -304,6 +304,10 @@ void * vm_map_page( void * page )
 			// if there is no space left in the pdpt
 			if ( PDPT_FULL(currentPdpTable) )
 			{
+				// DEBUG
+				putstr("PDPT FULL");
+				putint(page);
+				// END DEBUG
 				// get the current pml4t
 				long * currentPml4Table = vm_get_pml4t();
 				// if there is no space left in the pml4t
@@ -324,6 +328,7 @@ void * vm_map_page( void * page )
 				pdpTable = pdpTable | PG_PRESENT | PG_READWRITE;
 				// add the new pdpt to the current pml4t
 				PDT_ADD(currentPml4Table,pdpTable);
+				putstr("PDPT NO LONGER FULL");
 			}
 			// allocate a page for a new pdt
 			physical_page_t * physPDTable = vm_get_memable_page();

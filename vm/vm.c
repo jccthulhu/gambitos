@@ -317,13 +317,32 @@ void * vm_map_page( void * page )
 					PANIC("Ran out of virtual address space");
 				}
 				// allocate a page for a new pdpt
-				long pdpTable = (long)k_malloc( PAGE_SIZE );
-				// clear the physical page
-				for ( long i = 0; i < PAGE_SIZE/sizeof(long); i++ )
+				physical_page_t * physPDPTable = vm_get_memable_page();
+				if ( 0 == physPDPTable )
 				{
-					((long*)pdpTable)[i] = 0;
+					PANIC("Ran out of pdpt pages");
 				}
-				currentPdpTable = (long*)pdpTable;
+				long pdpTable = physPDPTable->pagePointer;
+				physPDPTable->next = memList;
+				memList = physPDPTable;
+				// clear the physical page
+				long * pdpVTable = (long*)physPDPTable->pageVPointer;
+				for ( long i = 0; i < PAGE_TABLE_SIZE; i++ )
+				{
+					((long*)pdpVTable)[i] = 0;
+				}
+				currentPdpTable = (long*)pdpVTable;
+				currentPdpt = pdpVTable;
+				// replace the memable page that we borrowed
+				physical_page_t * replacement = vm_get_physical_page();
+				if ( 0 == replacement )
+				{
+					PANIC("Need extra memory again");
+				}
+				replacement->next = memableList;
+				memableList = replacement;
+				PT_ADD(pVTable,(replacement->pagePointer|PG_PRESENT|PG_READWRITE));
+				replacement->pageVPointer = (long)CURRENT_V_POINTER();
 				// mark all of its attributes appropriately
 				pdpTable = pdpTable | PG_PRESENT | PG_READWRITE;
 				// add the new pdpt to the current pml4t

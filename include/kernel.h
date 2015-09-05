@@ -14,6 +14,8 @@
 
 #define PANIC(x)        putstr( "Woops." ); putstr(x); for (;;) {}
 
+#define	SYSCALL_TABLE	0x1D280
+
 // subroutine definitions
 
 void putchr(char character);

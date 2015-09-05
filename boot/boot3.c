@@ -19,10 +19,11 @@
 
 #pragma pack(0)
 
+/// private function definitions
+void install_syscalls( long * syscallTable );
+
 //////
 /// Bootloader Stage 3 Entry Point and Execution
-
-//void fault_handler( long interruptNumber, long errorCode );
 
 /// start
 /// the entry point into our C code from stage 2 of the bootloader
@@ -149,3 +150,13 @@ void putint(long value)
 	}
 }
 
+/// install_syscalls
+/// install all the system calls
+/// params:
+///	syscallTable	- The table of system calls
+/// returns:
+///	none
+void install_syscalls( long * syscallTable )
+{
+	syscallTable[ 0x10 ] = (long)vm_allocate_page;
+}

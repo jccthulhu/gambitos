@@ -32,7 +32,6 @@
 	.set PDPT,PML4T+PT_SZ	# this is the address to the page directory pointer (PDP) table, which points to the 512 PD tables
 	.set PDT,PDPT+PT_SZ	# this is the address to the page directory (PD) table, which points to the 512 page tables
 	.set PT,PDT+PT_SZ	# this is the address to the first page table, which points to 512 pages in memory
-	#.set PT2,PT+PT_SZ	# a second page table
 	.set VIDT,PT+(PT_SZ*NUM_KERN_PTS)	# this is an abstraction over the IDT
 	.set SYSTBL,VIDT+VIDT_SZ        # the system call table
 

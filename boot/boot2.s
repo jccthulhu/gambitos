@@ -6,8 +6,8 @@
 	.set TSS_SZ,0x65	# size of the TSS
 	.set TSS64_SZ,0x65	# size of the long mode TSS
 	.set IDT_SZ,0x300	# size of the IDT
-
 	.set VIDT_SZ,0x180	# size of the IDT abstraction
+	.set SYSTBL_SZ,0x200    # size of the system call table
 	.set CODE_SEL,0x8	# the index for the code segment in the GDT
 	.set DATA_SEL,0x10	# the index for the data segment in the GDT
 	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
@@ -34,6 +34,7 @@
 	.set PT,PDT+PT_SZ	# this is the address to the first page table, which points to 512 pages in memory
 	#.set PT2,PT+PT_SZ	# a second page table
 	.set VIDT,PT+(PT_SZ*NUM_KERN_PTS)	# this is an abstraction over the IDT
+	.set SYSTBL,VIDT+VIDT_SZ        # the system call table
 
 	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
 
@@ -638,6 +639,15 @@ build_idt.1:
 	cmpq	%rdx,%rax	# check it against 0x31
 	jne	build_idt.1	# if the loop counter is 31, then we can stop looping
 				# otherwise, jump to the start of the loop and continue
+
+	# install the system call gate for int 0x31
+	mov     $syscall_gate,%rdi      # load the function pointer
+	# IDT pointer is already in place
+	# the interrupt number is already in place
+	movb    $0x8e,%cl       # set the type:attributes
+				# specifically, set it as present, kernel priv,
+				#       64 bit interrupt gate
+	call	install_isr
 	# restore register values from the stack
 	popq	%rsi
 	popq	%rdi
@@ -971,6 +981,34 @@ isr_gate:
 	addq	$0x8,%rsp	# drop interrupt number
 	addq	$0x8,%rsp	# drop error code
 	iretq			# return in an extra special, interrupt-y kinda way
+
+###
+# system call redirection handler
+# params:
+#	rdi	system call number
+syscall_gate:
+	# save registers as per the System V ABI
+	pushq	%rbp
+	pushq	%rbx
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+
+	mov	$SYSTBL,%rbx		# load the pointer to the syscall table
+	mov	(%rbx,%rax,8),%rax	# index into it to get the appropriate syscall handler
+	call	*%rax			# call the handler
+
+	# return value is in rax; that's how that works
+
+	# restore registers as per the System V ABI
+	popq	%r15
+	popq	%r14
+	popq	%r13
+	popq	%r12
+	popq	%rbx
+	popq	%rbp
+	iretq		# return in an extra special, interrupt-y kinda way
 
 ###
 # default interrupt service routine

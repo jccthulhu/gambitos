@@ -46,14 +46,11 @@ void start()
 	putint(p);
 	p[0] = 0;
 	p[511] = 0;
-	for ( int i = 0; i < 0x40010; i++ ) 
-	{
-	      	p = vm_allocate_page();
-		p[0] = 0;
-		p[511] = 0;
-	}
 	putstr(";");
+	p = vm_allocate_page(0);
 	putint(p);
+	p[0] = 0;
+	p[511] = 0;
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"

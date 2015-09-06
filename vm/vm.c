@@ -403,6 +403,26 @@ void * vm_map_page( void * page )
 	return CURRENT_V_POINTER();
 }
 
+/// vm_access_page
+/// maps the given physical page into this process's virtual address
+/// space with user permissions, thus allowing the user to access it
+/// params:
+/// 	pageStart	- the start of the physical page
+/// returns:
+///	a virtual pointer suitable for use in user programs
+void * vm_access_page( void * pageStart )
+{
+	// make sure the pointer is page-aligned
+	if ( (long)pageStart != ((long)pageStart & 0x0FFF) )
+	{
+		return 0;
+	}
+	// do a permissions check
+	// TODO
+	// map that s**t!
+	return vm_map_page( pageStart );
+}
+
 /// vm_allocate_page
 /// allocate a page of memory
 /// params:

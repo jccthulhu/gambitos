@@ -156,4 +156,5 @@ void putint(long value)
 void install_syscalls( long * syscallTable )
 {
 	syscallTable[ 0x10 ] = (long)vm_allocate_page;
+	syscallTable[ 0x12 ] = (long)vm_access_page;
 }

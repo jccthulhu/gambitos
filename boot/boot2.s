@@ -382,6 +382,7 @@ main64:
 	movl	%ebx,%eax
 	
 	# set up the long mode TSS
+	mov	$tssspc64,%rdi
 	call	createtss64
 	mov	$TSS_SEL,%rax
 	ltr	%ax

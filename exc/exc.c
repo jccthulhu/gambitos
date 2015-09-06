@@ -139,7 +139,8 @@ void exc_stack_fault_handler(long interruptNumber, long errorCode)
 void exc_gp_fault_handler(long interruptNumber, long errorCode)
 {
 	putstr("General protection fault");
-	return;
+	putint(errorCode);
+	PANIC("We don't handle these yet :-/");
 }
 
 void exc_page_fault_handler(long interruptNumber, long errorCode)

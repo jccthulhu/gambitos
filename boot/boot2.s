@@ -10,7 +10,7 @@
 	.set SYSTBL_SZ,0x200    # size of the system call table
 	.set CODE_SEL,0x8	# the index for the code segment in the GDT
 	.set DATA_SEL,0x10	# the index for the data segment in the GDT
-	.set TSS_SEL,0x18	# the index for the TSS segment in the (32 bit) GDT
+	.set TSS_SEL,0x28	# the index for the TSS segment in the (32 bit) GDT
 	.set VIDEO_BASE,0xb8000	# the memory location for the origin of video memory, used for printing to the screen
 
 	.set MEM_META,0x500     # the start of memory containing information about memory
@@ -35,7 +35,7 @@
 	.set VIDT,PT+(PT_SZ*NUM_KERN_PTS)	# this is an abstraction over the IDT
 	.set SYSTBL,VIDT+VIDT_SZ        # the system call table
 
-	.set GDT64_SZ,0x28	# the size of the 64 bit GDT
+	.set GDT64_SZ,0x38	# the size of the 64 bit GDT
 
 	.set TEXT_ATTR,0x7	# the text attribute value that represents white text on a black background
 	.set NEXT_SEG,0x8c00	# the next stage entry point
@@ -612,7 +612,7 @@ build_idt.0:
 	mov	(%rdi),%rdi
 	# IDT pointer is already in place
 	# the interrupt number is already in place
-	movb	$0x8e,%cl	# set the type:attributes
+	movb	$0xee,%cl	# set the type:attributes
 				# specifically, set it as present, kernel priv,
 				#	32 bit interrupt gate
 	call	install_isr	# call the subroutine to install the exception handlee
@@ -631,7 +631,7 @@ build_idt.1:
 	mov	(%rdi),%rdi
 	# IDT pointer is already in place
 	# the interrupt number is already in place
-	movb	$0x8e,%cl	# set the type:attributes
+	movb	$0xee,%cl	# set the type:attributes
 				# specifically, set it as present, kernel priv,
 				#	32 bit interrupt gate
 	call	install_isr	# call the subroutine to install the handler
@@ -644,7 +644,7 @@ build_idt.1:
 	mov     $syscall_gate,%rdi      # load the function pointer
 	# IDT pointer is already in place
 	# the interrupt number is already in place
-	movb    $0x8e,%cl       # set the type:attributes
+	movb    $0xee,%cl       # set the type:attributes
 				# specifically, set it as present, kernel priv,
 				#       64 bit interrupt gate
 	call	install_isr
@@ -1076,6 +1076,20 @@ gdt64:
 	.word	0x0
 	.byte	0x0
 	.byte	0x92
+	.byte	0x20
+	.byte	0x0
+	# user code
+	.word	0x0
+	.word	0x0
+	.byte	0x0
+	.byte	0xF8
+	.byte	0x20
+	.byte	0x0
+	# user data
+	.word	0x0
+	.word	0x0
+	.byte	0x0
+	.byte	0xF2
 	.byte	0x20
 	.byte	0x0
 	# TSS segment

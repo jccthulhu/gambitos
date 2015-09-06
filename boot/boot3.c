@@ -15,12 +15,13 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	VIDT		(0x19000)
+#define	VIDT		(0x1D000)
 
 #pragma pack(0)
 
 /// private function definitions
 void install_syscalls( long * syscallTable );
+void user_loop();
 
 //////
 /// Bootloader Stage 3 Entry Point and Execution
@@ -51,6 +52,18 @@ void start()
 	putint(p);
 	p[0] = 0;
 	p[511] = 0;
+
+	long target = (long)user_loop;
+
+	// jump into some user code
+	asm( "pushq	$0x23" );
+	asm( "pushq	$0x7c00" );	// TODO: Push a real user stack
+	asm( "pushf" );
+	asm( "pushq	$0x1b" );
+	asm( "pushq	$user_loop" );
+	asm( "iretq" );
+
+	putstr("Didn't quite take");
 
 	// as my old comp sci teacher once said:
 	// "operating systems are easy; if nothing happens, do nothing"
@@ -157,4 +170,11 @@ void install_syscalls( long * syscallTable )
 {
 	syscallTable[ 0x10 ] = (long)vm_allocate_page;
 	syscallTable[ 0x12 ] = (long)vm_access_page;
+}
+
+/// user_loop
+/// test function; acts as a target for user space code
+void user_loop()
+{
+	for(;;){}
 }

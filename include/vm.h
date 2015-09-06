@@ -82,6 +82,7 @@ typedef struct physical_page_str
 void vm_init();
 void * vm_allocate_page();
 void * vm_map_page( void * pageStart );
+void * vm_access_page( void * pageStart );
 
 // data
 extern unsigned long * currentVPointer;	// TODO: This more reasonably

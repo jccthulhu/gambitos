@@ -40,6 +40,8 @@ void start()
 	vm_init( (meta_mem_t*)META_MEM );
 	exc_init( (virtual_interrupt_table)VIDT );
 
+	install_syscalls( VIDT );
+
 	// test memory allocation
 	long * p;
 	// allocate enough to force creation of multiple page tables

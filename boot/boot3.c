@@ -15,7 +15,7 @@
 #define	VIDEO_MEM_SIZE	0xfa0
 #define	META_MEM	0x500
 
-#define	VIDT		(0x19000)
+#define	VIDT		(0x1D000)
 #define	SYSTBL		(VIDT+0x180)
 
 #pragma pack(0)

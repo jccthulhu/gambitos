@@ -16,6 +16,7 @@
 #define	META_MEM	0x500
 
 #define	VIDT		(0x19000)
+#define	SYSTBL		(VIDT+0x180)
 
 #pragma pack(0)
 
@@ -39,7 +40,7 @@ void start()
 	vm_init( (meta_mem_t*)META_MEM );
 	exc_init( (virtual_interrupt_table)VIDT );
 
-	install_syscalls( VIDT );
+	install_syscalls( (long*)SYSTBL );
 
 	// test memory allocation
 	long * p;
